@@ -1,5 +1,5 @@
 """
-Rural Health Assistant — HackSprint 2.0
+ArogyaMitra - HackSprint 2.0
 Non-diagnostic healthcare accessibility platform with voice support.
 """
 
@@ -12,9 +12,8 @@ from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
 from voice import transcribe, speak_html, SUPPORTED_LANGS
 
-st.set_page_config(page_title="Rural Health Assistant", page_icon="⚕️", layout="wide")
+st.set_page_config(page_title="ArogyaMitra - Rural Health", page_icon="A", layout="wide")
 
-# ---------- Show only these emergency contacts in the sidebar ----------
 DISPLAY_CONTACTS = {name: num for name, num in EMERGENCY_CONTACTS.items()
                     if name in ("Ambulance", "National Emergency", "Health Helpline")}
 
@@ -31,11 +30,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 URGENT_BANNER_HTML = (
-    "<div class='urgent-banner'>🚨 This may be urgent — call 108 (Ambulance) "
+    "<div class='urgent-banner'>URGENT: This may be serious - call 108 (Ambulance) "
     "or 112 (Emergency) now, or go to the nearest hospital.</div>"
 )
 
-# ---------- session state ----------
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "reminders" not in st.session_state:
@@ -43,33 +41,34 @@ if "reminders" not in st.session_state:
 if "records" not in st.session_state:
     st.session_state.records = []
 
-# ---------- sidebar ----------
 with st.sidebar:
-    st.markdown("## ⚕️ Rural Health Assistant    st.caption("Non-diagnostic healthcare accessibility platform")
+    st.markdown("## ArogyaMitra")
+    st.caption("Your voice-first health companion")
+    st.caption("Non-diagnostic healthcare accessibility platform")
 
-    st.markdown("### 🚨 Emergency Contacts")
+    st.markdown("### Emergency Contacts")
     for name, number in DISPLAY_CONTACTS.items():
         st.markdown(f"**{name}:** `{number}`")
 
     st.divider()
     page = st.radio(
         "Navigate",
-        ["💬 Health Info Chat", "🏥 Find Healthcare", "⏰ Reminders", "📋 My Health Notes"],
+        ["Health Info Chat", "Find Healthcare", "Reminders", "My Health Notes"],
         label_visibility="collapsed",
     )
 
-    if page == "💬 Health Info Chat" and st.session_state.chat_history:
+    if page == "Health Info Chat" and st.session_state.chat_history:
         st.divider()
-        if st.button("🗑️ New chat", use_container_width=True):
+        if st.button("New chat", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()
 
     st.divider()
-    st.caption("Built for HackSprint 2.0 — Dept. of CSE, AITAM")
+    st.caption("Built for HackSprint 2.0 - Dept. of CSE, AITAM")
 
-st.info(DISCLAIMER, icon="⚕️")
+st.info(DISCLAIMER, icon="i")
 
-# ---------- recorder import (works with either package) ----------
+
 def get_recorder():
     """Returns a record(label) -> AudioSegment function, or None."""
     try:
@@ -85,25 +84,21 @@ def get_recorder():
     except ImportError:
         return None
 
+
 RECORDER = get_recorder()
+CURSOR = chr(0x258C)
 
-CURSOR = chr(0x258C)  # typing-cursor character used while streaming
+if page == "Health Info Chat":
+    st.title("ArogyaMitra - Health Information Assistant")
+    st.caption("Type below, or press record and just speak - Telugu, Hindi or English.")
 
-# ================= PAGE 1: CHAT (with voice) =================
-if page == "Health Info Chat" or page == "💬 Health Info Chat":
-    st.title("Health Information Assistant")
-    st.caption("Type below, or press record and just speak — Telugu, Hindi or English.")
-
-    # Voice language selector (controls both listening and spoken reply)
     v1, _v2 = st.columns([1, 2])
     voice_lang_name = v1.selectbox("Voice language", list(SUPPORTED_LANGS.keys()))
-    voice_lang = SUPPORTED_LANGS[voice_lang_name]
-    st.session_state["voice_lang"] = voice_lang
+    st.session_state["voice_lang"] = SUPPORTED_LANGS[voice_lang_name]
 
-    # ---- Welcome + quick topics (first visit only) ----
     if not st.session_state.chat_history:
         st.success(
-            "Welcome! I'm here to give you general health information. "
+            "Welcome! I am here to give you general health information. "
             "Type a question, press the mic button to speak, or tap a topic."
         )
         st.caption("Quick topics")
@@ -119,20 +114,18 @@ if page == "Health Info Chat" or page == "💬 Health Info Chat":
             st.session_state.chat_history.append({"role": "user", "text": clicked})
             st.rerun()
 
-    # ---- Render chat history (with spoken-reply audio) ----
     for msg in st.session_state.chat_history:
         if msg["role"] == "user":
-            with st.chat_message("user", avatar="🧑"):
+            with st.chat_message("user"):
                 st.markdown(msg["text"])
         else:
-            with st.chat_message("assistant", avatar="⚕️"):
+            with st.chat_message("assistant"):
                 if msg.get("urgent"):
                     st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
                 st.markdown(msg["text"])
                 if msg.get("audio"):
                     st.markdown(msg["audio"], unsafe_allow_html=True)
 
-    # ---- Generate reply for latest user message ----
     needs_reply = (
         st.session_state.chat_history
         and st.session_state.chat_history[-1]["role"] == "user"
@@ -140,7 +133,7 @@ if page == "Health Info Chat" or page == "💬 Health Info Chat":
     if needs_reply:
         latest = st.session_state.chat_history[-1]["text"]
         history_so_far = st.session_state.chat_history[:-1]
-        with st.chat_message("assistant", avatar="⚕️"):
+        with st.chat_message("assistant"):
             placeholder = st.empty()
             urgent_placeholder = st.empty()
             audio_slot = st.empty()
@@ -158,18 +151,17 @@ if page == "Health Info Chat" or page == "💬 Health Info Chat":
                 audio_slot.markdown(audio_html, unsafe_allow_html=True)
         st.session_state.chat_history.append({
             "role": "assistant",
-            "text": stream_response.last_full_text or full_text,
-            "urgent": stream_response.last_urgent,
+            "text": getattr(stream_response, "last_full_text", "") or full_text,
+            "urgent": getattr(stream_response, "last_urgent", False),
             "audio": audio_html,
         })
         st.rerun()
 
-    # ---- VOICE INPUT: record -> transcribe -> confirm -> send ----
     if RECORDER is None:
-        st.warning("Voice input needs a recorder package in requirements.txt — "
-                   "add streamlit-audiorecorder or audio-recorder-streamlit and reboot the app.")
+        st.warning("Voice input needs a recorder package in requirements.txt - "
+                   "add streamlit-audiorecorder and reboot the app.")
     else:
-        st.markdown("##### Or speak your question")
+        st.markdown("##### Speak your question")
         audio = RECORDER("Tap to record")
 
         if audio is not None and len(audio) > 0:
@@ -193,7 +185,6 @@ if page == "Health Info Chat" or page == "💬 Health Info Chat":
                                "Try again closer to the mic, or type below.")
                 st.rerun()
 
-        # Confirm what was heard (protects against accents/misrecognition)
         if st.session_state.get("heard_text"):
             st.success(f"I heard: **{st.session_state['heard_text']}**")
             c1, c2 = st.columns(2)
@@ -205,7 +196,6 @@ if page == "Health Info Chat" or page == "💬 Health Info Chat":
                 st.session_state.pop("heard_text", None)
                 st.rerun()
 
-    # ---- Typed input (always visible) ----
     with st.form("chat_form", clear_on_submit=True):
         query = st.text_input(
             "Your question",
@@ -217,8 +207,7 @@ if page == "Health Info Chat" or page == "💬 Health Info Chat":
         st.session_state.chat_history.append({"role": "user", "text": query.strip()})
         st.rerun()
 
-# ================= PAGE 2: LOCATOR =================
-elif page == "Find Healthcare" or page == "🏥 Find Healthcare":
+elif page == "Find Healthcare":
     st.title("Find Nearby Healthcare")
     st.caption("Demo dataset near Tekkali, AP. Distances are approximate "
                "unless you share your location below.")
@@ -238,15 +227,14 @@ elif page == "Find Healthcare" or page == "🏥 Find Healthcare":
         with st.container(border=True):
             c1, c2 = st.columns([3, 1])
             with c1:
-                st.markdown(f### {f['name']}")
+                st.markdown(f"### {f['name']}")
                 st.markdown(f"**Type:** {f['type']}  |  **Services:** {f['services']}")
                 st.markdown(f"Phone: {f['phone']}")
-            with c:
+            with c2:
                 st.metric("Distance", f"{f['distance_km']} km")
 
-# ================= PAGE 3: REMINDERS =================
-elif page == "Reminders" or page == "⏰ Reminders":
-    st.title("Medicine & Appointment Reminders")
+elif page == "Reminders":
+    st.title("Medicine and Appointment Reminders")
 
     with st.form("add_reminder", clear_on_submit=True):
         c1, c2, c3 = st.columns([3, 2, 2])
@@ -273,14 +261,13 @@ elif page == "Reminders" or page == "⏰ Reminders":
         for i, r in enumerate(sorted_reminders):
             c1, c2 = st.columns([5, 1])
             with c1:
-                st.markdown(f"**{r['title']}** — {r['date']} at {r['time']}")
+                st.markdown(f"**{r['title']}** - {r['date']} at {r['time']}")
             with c2:
                 if st.button("Delete", key=f"del_{i}"):
                     st.session_state.reminders.remove(r)
                     st.rerun()
 
-# ================= PAGE 4: HEALTH NOTES =================
-elif page == "My Health Notes" or page == "📋 My Health Notes":
+elif page == "My Health Notes":
     st.title("My Health Notes")
     st.caption(
         "A private, local space to jot down symptoms, visit summaries, or "
