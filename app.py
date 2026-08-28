@@ -1,17 +1,16 @@
 """
 Rural Health Assistant — HackSprint 2.0
-Problem Statement #2: Healthcare Accessibility and Rural Health Assistant
-
-A non-diagnostic digital healthcare assistance platform. This system does
-NOT diagnose or prescribe — it routes serious concerns to real medical
-professionals and emergency services.
+Non-diagnostic healthcare accessibility platform with voice support.
 """
 
+import io
+import hashlib
 import streamlit as st
 from datetime import datetime, date
 from engine import stream_response
 from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
+from voice import transcribe, speak_html, SUPPORTED_LANGS
 
 st.set_page_config(page_title="Rural Health Assistant", page_icon="⚕️", layout="wide")
 
@@ -65,20 +64,24 @@ with st.sidebar:
     st.divider()
     st.caption("Built for HackSprint 2.0 — Dept. of CSE, AITAM")
 
-# ---------- header disclaimer ----------
 st.info(DISCLAIMER, icon="⚕️")
 
-# ================= PAGE 1: CHAT =================
+# ================= PAGE 1: CHAT (with voice) =================
 if page == "💬 Health Info Chat":
     st.title("Health Information Assistant")
-    st.caption("Ask about common symptoms or health topics, in your own words and language.")
+    st.caption("Type below, or 🎙️ press record and just speak — Telugu, Hindi or English.")
+
+    # Voice language selector (controls both listening and spoken reply)
+    v1, _v2 = st.columns([1, 2])
+    voice_lang_name = v1.selectbox("🗣️ Voice language", list(SUPPORTED_LANGS.keys()))
+    voice_lang = SUPPORTED_LANGS[voice_lang_name]
+    st.session_state["voice_lang"] = voice_lang
 
     # ---- Welcome + quick topics (first visit only) ----
     if not st.session_state.chat_history:
         st.success(
-            "👋 **Welcome!** I'm here to give you general health information, "
-            "help you find nearby care, and flag anything that needs urgent "
-            "attention. Type a question below, or tap a topic to try it out."
+            "👋 **Welcome!** I'm here to give you general health information. "
+            "Type a question, press 🎙️ to speak, or tap a topic."
         )
         st.caption("Quick topics")
         suggestions = ["Fever", "Cough and cold", "Loose motions", "Headache",
@@ -93,7 +96,7 @@ if page == "💬 Health Info Chat":
             st.session_state.chat_history.append({"role": "user", "text": clicked})
             st.rerun()
 
-    # ---- Render existing chat history ----
+    # ---- Render chat history (with spoken-reply audio) ----
     for msg in st.session_state.chat_history:
         if msg["role"] == "user":
             with st.chat_message("user", avatar="🧑"):
@@ -103,8 +106,10 @@ if page == "💬 Health Info Chat":
                 if msg.get("urgent"):
                     st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
                 st.markdown(msg["text"])
+                if msg.get("audio"):
+                    st.markdown(msg["audio"], unsafe_allow_html=True)
 
-    # ---- Generate a reply if the last message is from the user ----
+    # ---- Generate reply for latest user message ----
     needs_reply = (
         st.session_state.chat_history
         and st.session_state.chat_history[-1]["role"] == "user"
@@ -115,6 +120,7 @@ if page == "💬 Health Info Chat":
         with st.chat_message("assistant", avatar="⚕️"):
             placeholder = st.empty()
             urgent_placeholder = st.empty()
+            audio_slot = st.empty()
             full_text = ""
             urgent_shown = False
             for chunk in stream_response(history_so_far, latest):
@@ -124,14 +130,64 @@ if page == "💬 Health Info Chat":
                 full_text += chunk
                 placeholder.markdown(full_text + "▌")
             placeholder.markdown(full_text)
+            audio_html = speak_html(full_text, st.session_state.get("voice_lang", "en-IN"))
+            if audio_html:
+                audio_slot.markdown(audio_html, unsafe_allow_html=True)
         st.session_state.chat_history.append({
             "role": "assistant",
             "text": stream_response.last_full_text or full_text,
             "urgent": stream_response.last_urgent,
+            "audio": audio_html,
         })
         st.rerun()
 
-    # ---- Chat input: form-based, ALWAYS visible ----
+    # ---- 🎙️ VOICE INPUT: record → transcribe → confirm → send ----
+    try:
+        from streamlit_audiorecorder import audiorecorder
+        has_recorder = True
+    except ImportError:
+        has_recorder = False
+        st.warning("🎙️ Voice needs `streamlit-audiorecorder` in requirements.txt — "
+                   "add it and redeploy to enable the mic.")
+
+    if has_recorder:
+        st.markdown("##### 🎙️ Or speak your question")
+        audio = audiorecorder("🎙️ Tap to record", "⏹️ Tap to stop", key="mic")
+
+        if audio is not None and len(audio) > 0:
+            buf = io.BytesIO()
+            try:
+                audio.export(buf, format="wav")
+                wav_data = buf.getvalue()
+            except Exception:
+                wav_data = bytes(audio)
+
+            sig = hashlib.md5(wav_data).hexdigest()
+            if st.session_state.get("last_rec_sig") != sig:
+                st.session_state.last_rec_sig = sig
+                with st.spinner("Understanding your speech…"):
+                    heard = transcribe(wav_data, st.session_state.get("voice_lang", "en-IN"))
+                if heard and heard.strip():
+                    st.session_state.heard_text = heard.strip()
+                else:
+                    st.session_state.pop("heard_text", None)
+                    st.warning("Sorry, I couldn't understand that. "
+                               "Try again closer to the mic, or type below.")
+                st.rerun()
+
+        # Confirm what was heard (protects against accents/misrecognition)
+        if st.session_state.get("heard_text"):
+            st.success(f"🗣️ I heard: **{st.session_state['heard_text']}**")
+            c1, c2 = st.columns(2)
+            if c1.button("✅ Send this", type="primary", use_container_width=True):
+                q = st.session_state.pop("heard_text")
+                st.session_state.chat_history.append({"role": "user", "text": q})
+                st.rerun()
+            if c2.button("❌ Discard", use_container_width=True):
+                st.session_state.pop("heard_text", None)
+                st.rerun()
+
+    # ---- Typed input (always visible) ----
     with st.form("chat_form", clear_on_submit=True):
         query = st.text_input(
             "Your question",
