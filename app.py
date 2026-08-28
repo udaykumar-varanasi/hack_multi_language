@@ -12,7 +12,7 @@ from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
 from voice import transcribe, speak_html, SUPPORTED_LANGS
 
-st.set_page_config(page_title="ArogyaMitra - Rural Health", page_icon="A", layout="wide")
+st.set_page_config(page_title="ArogyaMitra - Rural Health", layout="wide")
 
 DISPLAY_CONTACTS = {name: num for name, num in EMERGENCY_CONTACTS.items()
                     if name in ("Ambulance", "National Emergency", "Health Helpline")}
@@ -31,7 +31,7 @@ st.markdown("""
 
 URGENT_BANNER_HTML = (
     "<div class='urgent-banner'>URGENT: This may be serious - call 108 (Ambulance) "
-    "or 112 (Emergency) now, or go to the nearest hospital.</div>"
+    "or 112 (Emergency) now, or go to nearest hospital.</div>"
 )
 
 if "chat_history" not in st.session_state:
@@ -66,7 +66,7 @@ with st.sidebar:
     st.divider()
     st.caption("Built for HackSprint 2.0 - Dept. of CSE, AITAM")
 
-st.info(DISCLAIMER, icon="i")
+st.info(DISCLAIMER)
 
 
 def get_recorder():
@@ -172,7 +172,7 @@ if page == "Health Info Chat":
             except Exception:
                 wav_data = bytes(audio)
 
-            sig = hashlib.md5(wav_data).hexdigest()
+            sig = hashlib.md5(wav_datahexdigest()
             if st.session_state.get("last_rec_sig") != sig:
                 st.session_state.last_rec_sig = sig
                 with st.spinner("Understanding your speech..."):
@@ -201,8 +201,7 @@ if page == "Health Info Chat":
             "Your question",
             placeholder="e.g. I have fever since 2 days...",
             label_visibility="collapsed",
-        )
-        submitted = st.form_submit_button("Send", type="primary", use_container_width=True)
+               submitted = st.form_submit_button("Send", type="primary", use_container_width=True)
     if submitted and query and query.strip():
         st.session_state.chat_history.append({"role": "user", "text": query.strip()})
         st.rerun()
@@ -246,7 +245,7 @@ elif page == "Reminders":
             r_time = st.time_input("Time")
         submitted = st.form_submit_button("Add Reminder", type="primary")
         if submitted and r_title.strip():
-            st.session_state.reminders.append({
+            st.session_state.reminders({
                 "title": r_title, "date": str(r_date), "time": str(r_time),
                 "added": datetime.now().strftime("%Y-%m-%d %H:%M"),
             })
@@ -289,5 +288,5 @@ elif page == "My Health Notes":
     else:
         for rec in reversed(st.session_state.records):
             with st.container(border=True):
-                st.caption(rec["date"])
-                st.write(rec["text"])
+                st.caption["date"])
+                st(rec["text"])
