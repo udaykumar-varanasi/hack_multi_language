@@ -37,7 +37,7 @@ with st.sidebar:
     st.title("⚕️ ArogyaMitra")
     st.caption("Rural Health Assistant - AP")
     page = st.radio(
-        "Go to",
+ "Go to",
         ["💬 Health Info Chat", "📍 Find Facilities", "ℹ️ About"],
         label_visibility="collapsed",
     )
@@ -88,6 +88,7 @@ if page == "💬 Health Info Chat":
 
     # ---- voice input ----
     wav_bytes = None
+    recorder_available = True
     try:
         from audio_recorder_streamlit import audio_recorder
         wav_bytes = audio_recorder(
@@ -102,8 +103,11 @@ if page == "💬 Health Info Chat":
         try:
             from streamlit_audiorecorder import st_audiorecorder
             wav_bytes = st_audiorecorder("🎙️ Speak", key="voice_recorder2")
-山人        except Exception:
-        st.caption("🎙️ Voice input unavailable — please type your question.")
+        except Exception:
+            recorder_available = False
+
+    if not recorder_available:
+        st.caption("🎙️ Voice input unavailable - please type your question.")
 
     spoken_text = ""
     if wav_bytes:
@@ -172,7 +176,7 @@ if page == "💬 Health Info Chat":
 # ===================== PAGE 2: FACILITY LOCATOR =====================
 elif page == "📍 Find Facilities":
     st.title("Find Health Facilities Near You")
-    st.caption("Demo database covering the Tekkali area, Srikakulam district.")
+    st.caption("Demo database covering the Tekkali area,rikakulam district.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -191,8 +195,10 @@ elif page == "📍 Find Facilities":
     if st.button("🔎 Search", type="primary"):
         results = search_facilities(lat, lon, need=need, max_km=max_km)
         if not results:
-            st.warning("No facilities found for that filter. Try widening "
-                       "the distance or choosing 'Any'.")
+            st.warning(
+                "No facilities found for that filter. Try the "
+                "distance or choosing 'Any'."
+            )
         else:
             rows = []
             for f in results:
@@ -200,12 +206,12 @@ elif page == "📍 Find Facilities":
                     {
                         "Facility": f["name"],
                         "Type": f["type"],
-                        "Distance (km)": round(f["distance_km"], 1),
+                        "Distance (km)": round(f["_km"], 1),
                         "Services": f["services"],
                         "Phone": f["phone"],
                     }
                 )
-            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+            st.data(pd.DataFrame(rows), use_container_width=True)
 
             st.markdown("##### Map")
             map_df = pd.DataFrame(
