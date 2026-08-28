@@ -1,10 +1,5 @@
-"""
-ArogyaMitra - HackSprint 2.0
-Non-diagnostic healthcare accessibility platform with voice support.
-"""
-
-import io
 import hashlib
+
 import streamlit as st
 from datetime import datetime, date
 from engine import stream_response
@@ -12,288 +7,246 @@ from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
 from voice import transcribe, speak_html, SUPPORTED_LANGS
 
-st.set_page_config(page_title="ArogyaMitra - Rural Health", layout="wide")
+import pandas as pd
 
-DISPLAY_CONTACTS = {name: num for name, num in EMERGENCY_CONTACTS.items()
-                    if name in ("Ambulance", "National Emergency", "Health Helpline")}
-
-st.markdown("""
-<style>
-    .block-container { padding-top: 1.5rem; max-width: 900px; }
-    [data-testid="stChatMessage"] { padding: 0.25rem 0; }
-    .urgent-banner {
-        background: #fee2e2; border: 1px solid #fca5a5; color: #7f1d1d;
-        padding: 0.9rem 1.1rem; border-radius: 10px; margin-bottom: 0.6rem;
-        font-weight: 600;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-URGENT_BANNER_HTML = (
-    "<div class='urgent-banner'>URGENT: This may be serious - call 108 "
-    "(Ambulance) or 112 (Emergency) now, or go to nearest hospital.</div>"
+# ===================== PAGE SETUP =====================
+st.set_page_config(
+    page_title="ArogyaMitra - Rural Health Assistant",
+    page_icon="⚕️",
+    layout="centered",
+    initial_sidebar_state="expanded",
 )
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "reminders" not in st.session_state:
-    st.session_state.reminders = []
-if "records" not in st.session_state:
-    st.session_state.records = []
+CURSOR = " ▌"
 
+URGENT_BANNER_HTML = (
+    '<div style="background:#b00020;color:#fff;padding:12px 16px;'
+    'border-radius:10px;font-weight:bold;margin-bottom:8px;">'
+    '🚨 This sounds URGENT. Call 108 / 112 NOW, then follow the first-aid '
+    'steps below while help arrives.</div>'
+)
+
+AUDIO_EXPANDER_HTML = (
+    '<details style="margin-top:4px;"><summary style="cursor:pointer;'
+    'font-size:0.85em;">🔊 Listen to this answer</summary>'
+    '<div>{audio}</div></details>'
+)
+
+# ===================== SIDEBAR =====================
 with st.sidebar:
-    st.markdown("## ArogyaMitra")
-    st.caption("Your voice-first health companion")
-    st.caption("Non-diagnostic healthcare accessibility platform")
-
-    st.markdown("### Emergency Contacts")
-    for name, number in DISPLAY_CONTACTS.items():
-        st.markdown(f"**{name}:** `{number}`")
-
-    st.divider()
+    st.title("⚕️ ArogyaMitra")
+    st.caption("Rural Health Assistant - AP")
     page = st.radio(
-        "Navigate",
-        ["Health Info Chat", "Find Healthcare", "Reminders", "My Health Notes"],
+        "Go to",
+        ["💬 Health Info Chat", "📍 Find Facilities", "ℹ️ About"],
+        label_visibility="collapsed",
+    )
+    st.divider()
+
+    st.subheader("🌐 Voice language")
+    voice_lang = st.selectbox(
+        "For speech input / output",
+        list(SUPPORTED_LANGS.keys()),
+        format_func=lambda k: SUPPORTED_LANGS[k],
         label_visibility="collapsed",
     )
 
-    if page == "Health Info Chat" and st.session_state.chat_history:
-        st.divider()
-        if st.button("New chat", use_container_width=True):
-            st.session_state.chat_history = []
-            st.rerun()
+    st.divider()
+    st.subheader("🚨 Emergency numbers")
+    for label, num in EMERGENCY_CONTACTS.items():
+        st.markdown(f"**{label}:** `{num}`")
 
     st.divider()
-    st.caption("Built for HackSprint 2.0 - Dept. of CSE, AITAM")
+    st.caption(
+        "Non-diagnostic, non-prescribing platform. "
+        "Not a substitute for a doctor."
+    )
 
-st.info(DISCLAIMER)
+st.session_state.setdefault("chat_history", [])
+st.session_state.setdefault("voice_lang", voice_lang)
+st.session_state["voice_lang"] = voice_lang
 
+st.info(DISCLAIMER, icon="ℹ️")
 
-def get_recorder():
-    try:
-        from audio_recorder_streamlit import audio_recorder
-        return lambda label: audio_recorder(
-            text=label,
-            recording_color="#e63946",
-            neutral_color="#45818e",
-            key="mic"
-        )
-    except ImportError:
-        pass
-    try:
-        from streamlit_audiorecorder import audiorecorder
-        return lambda label: audiorecorder(label, "Tap to stop", key="mic")
-    except ImportError:
-        return None
-
-
-RECORDER = get_recorder()
-CURSOR = chr(0x258C)
-
-if page == "Health Info Chat":
-    st.title("ArogyaMitra - Health Information Assistant")
-    st.caption("Type below, or press record and just speak - Telugu, Hindi or English.")
-
-    v1, _v2 = st.columns([1, 2])
-    voice_lang_name = v1.selectbox("Voice language", list(SUPPORTED_LANGS.keys()))
-    st.session_state["voice_lang"] = SUPPORTED_LANGS[voice_lang_name]
-
-    if not st.session_state.chat_history:
-        st.success(
-            "Welcome! I am here to give you general health information. "
-            "Type a question, press the mic button to speak, or tap a topic."
-        )
-        st.caption("Quick topics")
-        suggestions = ["Fever", "Cough and cold", "Loose motions", "Headache",
-                       "Body pain", "Stomach pain", "Feeling stressed", "Snake bite",
-                       "Diabetes", "Blood pressure", "Child health", "Pregnancy care",
-                       "Allergy", "Tooth pain", "Dog bite", "Nutrition"]
-        cols = st.columns(4)
-        clicked = None
-        for i, s in enumerate(suggestions):
-            with cols[i % 4]:
-                if st.button(s, use_container_width=True, key=f"sugg_{i}"):
-                    clicked = s
-        if clicked:
-            st.session_state.chat_history.append({"role": "user", "text": clicked})
-            st.rerun()
+# ===================== PAGE 1: CHAT =====================
+if page == "💬 Health Info Chat":
+    st.title("Health Information Assistant")
+    st.caption(
+        "Type below, or press the record button and just speak — "
+        "Telugu, Hindi and English supported."
+    )
 
     for msg in st.session_state.chat_history:
-        if msg["role"] == "user":
-            with st.chat_message("user"):
-                st.markdown(msg["text"])
-        else:
-            with st.chat_message("assistant"):
-                if msg.get("urgent"):
-                    st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
-                st.markdown(msg["text"])
-                if msg.get("audio"):
-                    st.markdown(msg["audio"], unsafe_allow_html=True)
+        with st.chat_message(msg["role"]):
+            if msg.get("urgent") and msg["role"] == "assistant":
+                st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
+            st.markdown(msg["text"])
+            audio = msg.get("audio")
+            if audio:
+                with st.expander("🔊 Listen"):
+                    st.markdown(audio, unsafe_allow_html=True)
 
-    needs_reply = (
-        st.session_state.chat_history
-        and st.session_state.chat_history[-1]["role"] == "user"
-    )
+    # ---- voice input ----
+    wav_bytes = None
+    try:
+        from audio_recorder_streamlit import audio_recorder
+        wav_bytes = audio_recorder(
+            text="🎙️ Speak (click to record)",
+            recording_color="#e74c3c",
+            neutral_color="#6c757d",
+            icon_size="2x",
+            key="voice_recorder",
+            return_bytes="wav",
+        )
+    except Exception:
+        try:
+            from streamlit_audiorecorder import st_audiorecorder
+            wav_bytes = st_audiorecorder("🎙️ Speak", key="voice_recorder2")
+山人        except Exception:
+        st.caption("🎙️ Voice input unavailable — please type your question.")
+
+    spoken_text = ""
+    if wav_bytes:
+        audio_sig = hashlib.md5(wav_bytes).hexdigest()
+        if audio_sig != st.session_state.get("last_audio_sig"):
+            st.session_state["last_audio_sig"] = audio_sig
+            with st.spinner("Understanding your speech..."):
+                spoken_text = transcribe(wav_bytes, st.session_state["voice_lang"])
+            if spoken_text:
+                st.toast("Heard you!", icon="✅")
+
+    # ---- text input ----
+    typed_text = st.chat_input("Type your health question here...")
+
+    user_query = spoken_text or typed_text or ""
+
+    needs_reply = False
+    if user_query:
+        st.session_state.chat_history.append(
+            {"role": "user", "text": user_query}
+        )
+        with st.chat_message("user"):
+            st.markdown(user_query)
+        needs_reply = True
+
     if needs_reply:
         latest = st.session_state.chat_history[-1]["text"]
         history_so_far = st.session_state.chat_history[:-1]
-        audio_html = None
+
         with st.chat_message("assistant"):
+            urgent_banner = st.empty()
             placeholder = st.empty()
-            urgent_placeholder = st.empty()
             audio_slot = st.empty()
-            full_text = ""
-            urgent_shown = False
-            for chunk in stream_response(history_so_far, latest):
-                if stream_response.last_urgent and not urgent_shown:
-                    urgent_placeholder.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
-                    urgent_shown = True
-                full_text += chunk
-                placeholder.markdown(full_text + CURSOR)
-            placeholder.markdown(full_text)
-            audio_html = speak_html(full_text, st.session_state.get("voice_lang", "en-IN"))
+
+            result = stream_response(history_so_far, latest)
+            reply_text = result.get("text", "")
+            urgent = result.get("urgent", False)
+
+            # simple typewriter effect
+            shown = ""
+            for i in range(0, len(reply_text), 6):
+                shown = reply_text[: i + 6]
+                placeholder.markdown(shown + CURSOR)
+            placeholder.markdown(reply_text)
+
+            if urgent:
+                urgent_banner.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
+
+            audio_html = speak_html(reply_text, st.session_state["voice_lang"])
             if audio_html:
-                audio_slot.markdown(audio_html, unsafe_allow_html=True)
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "text": getattr(stream_response, "last_full_text", "") or full_text,
-            "urgent": getattr(stream_response, "last_urgent", False),
-            "audio": audio_html,
-        })
-        st.rerun()
+                audio_slot.markdown(
+                    AUDIO_EXPANDER_HTML.format(audio=audio_html),
+                    unsafe_allow_html=True,
+                )
 
-    if RECORDER is None:
-        st.warning("Voice input needs a recorder package in requirements.txt.")
-    else:
-        st.markdown("##### Speak your question")
-        audio = RECORDER("Tap to record")
-
-        if audio is not None and len(audio) > 0:
-            buf = io.BytesIO()
-            try:
-                audio.export(buf, format="wav")
-                wav_data = buf.getvalue()
-            except Exception:
-                wav_data = bytes(audio)
-
-            sig = hashlib.md5(wav_data).hexdigest()
-            if st.session_state.get("last_rec_sig") != sig:
-                st.session_state.last_rec_sig = sig
-                with st.spinner("Understanding your speech..."):
-                    heard = transcribe(wav_data, st.session_state.get("voice_lang", "en-IN"))
-                if heard and heard.strip():
-                    st.session_state.heard_text = heard.strip()
-                else:
-                    st.session_state.pop("heard_text", None)
-                    st.warning("Sorry, I could not understand that. Try again or type below.")
-                st.rerun()
-
-        if st.session_state.get("heard_text"):
-            st.success(f"I heard: **{st.session_state['heard_text']}**")
-            c1, c2 = st.columns(2)
-            if c1.button("Send this", type="primary", use_container_width=True):
-                q = st.session_state.pop("heard_text")
-                st.session_state.chat_history.append({"role": "user", "text": q})
-                st.rerun()
-            if c2.button("Discard", use_container_width=True):
-                st.session_state.pop("heard_text", None)
-                st.rerun()
-
-    with st.form("chat_form", clear_on_submit=True):
-        query = st.text_input(
-            "Your question",
-            placeholder="e.g. I have fever since 2 days...",
-            label_visibility="collapsed",
+        st.session_state.chat_history.append(
+            {
+                "role": "assistant",
+                "text": reply_text,
+                "urgent": urgent,
+                "audio": audio_html,
+            }
         )
-        submitted = st.form_submit_button("Send", type="primary", use_container_width=True)
-    if submitted and query and query.strip():
-        st.session_state.chat_history.append({"role": "user", "text": query.strip()})
         st.rerun()
 
-elif page == "Find Healthcare":
-    st.title("Find Nearby Healthcare")
-    st.caption("Demo dataset near Tekkali, AP. Distances are approximate "
-               "unless you share your location below.")
+# ===================== PAGE 2: FACILITY LOCATOR =====================
+elif page == "📍 Find Facilities":
+    st.title("Find Health Facilities Near You")
+    st.caption("Demo database covering the Tekkali area, Srikakulam district.")
 
-    use_loc = st.checkbox("Use my location for accurate distances")
-    user_coords = None
-    if use_loc:
-        lc1, lc2 = st.columns(2)
-        lat = lc1.number_input("Latitude", value=18.62, format="%.4f")
-        lon = lc2.number_input("Longitude", value=84.05, format="%.4f")
-        user_coords = (lat, lon)
+    col1, col2 = st.columns(2)
+    with col1:
+        need = st.selectbox(
+            "What do you need?",
+            ["Any", "emergency", "maternity", "pediatric", "lab",
+             "vaccination", "specialist", "surgery", "general"],
+        )
+    with col2:
+        max_km = st.slider("Within distance (km)", 1, 100, 30)
 
-    search_q = st.text_input("Search by need (e.g. emergency, maternity, pediatric)", "")
-    results = search_facilities(search_q, user_coords=user_coords)
+    st.markdown("#### Your location")
+    lat = st.number_input("Latitude", value=18.6063, format="%.4f")
+    lon = st.number_input("Longitude", value=84.2460, format="%.4f")
 
-    for f in results:
-        with st.container(border=True):
-            c1, c2 = st.columns([3, 1])
-            with c1:
-                st.markdown(f"### {f['name']}")
-                st.markdown(f"**Type:** {f['type']}  |  **Services:** {f['services']}")
-                st.markdown(f"Phone: {f['phone']}")
-            with c2:
-                st.metric("Distance", f"{f['distance_km']} km")
+    if st.button("🔎 Search", type="primary"):
+        results = search_facilities(lat, lon, need=need, max_km=max_km)
+        if not results:
+            st.warning("No facilities found for that filter. Try widening "
+                       "the distance or choosing 'Any'.")
+        else:
+            rows = []
+            for f in results:
+                rows.append(
+                    {
+                        "Facility": f["name"],
+                        "Type": f["type"],
+                        "Distance (km)": round(f["distance_km"], 1),
+                        "Services": f["services"],
+                        "Phone": f["phone"],
+                    }
+                )
+            st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
-elif page == "Reminders":
-    st.title("Medicine and Appointment Reminders")
-
-    with st.form("add_reminder", clear_on_submit=True):
-        c1, c2, c3 = st.columns([3, 2, 2])
-        with c1:
-            r_title = st.text_input("What (medicine / appointment)")
-        with c2:
-            r_date = st.date_input("Date", min_value=date.today())
-        with c3:
-            r_time = st.time_input("Time")
-        submitted = st.form_submit_button("Add Reminder", type="primary")
-        if submitted and r_title.strip():
-            st.session_state.reminders.append({
-                "title": r_title,
-                "date": str(r_date),
-                "time": str(r_time),
-                "added": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            })
-            st.success(f"Reminder added: {r_title} on {r_date} at {r_time}")
+            st.markdown("##### Map")
+            map_df = pd.DataFrame(
+                {
+                    "lat": [f["lat"] for f in results] + [lat],
+                    "lon": [f["lon"] for f in results] + [lon],
+                }
+            )
+            st.map(map_df)
 
     st.divider()
-    if not st.session_state.reminders:
-        st.caption("No reminders yet.")
-    else:
-        sorted_reminders = sorted(st.session_state.reminders,
-                                  key=lambda r: (r["date"], r["time"]))
-        for i, r in enumerate(sorted_reminders):
-            c1, c2 = st.columns([5, 1])
-            with c1:
-                st.markdown(f"**{r['title']}** - {r['date']} at {r['time']}")
-            with c2:
-                if st.button("Delete", key=f"del_{i}"):
-                    st.session_state.reminders.remove(r)
-                    st.rerun()
+    st.markdown("##### ☎️ Quick emergency dialing")
+    for label, num in EMERGENCY_CONTACTS.items():
+        st.markdown(f"- **{label}:** {num}")
 
-elif page == "My Health Notes":
-    st.title("My Health Notes")
-    st.caption(
-        "A private, local space to jot down symptoms, visit summaries, or "
-        "questions to ask your doctor. Not a medical record; not shared."
+# ===================== PAGE 3: ABOUT =====================
+else:
+    st.title("About ArogyaMitra")
+    st.markdown(
+        """
+**ArogyaMitra** is a multilingual (Telugu / Hindi / English) rural health
+accessibility assistant built for the Google GenAI Exchange Hackathon.
+
+**What it does**
+- 💬 Answers everyday health questions with safe, general information
+  (powered by Gemini, with an offline knowledge base as fallback).
+- 🎙️ Accepts **voice input** and reads answers **aloud** — designed for
+  low-literacy users.
+- 📍 Helps locate nearby PHCs / hospitals and shows emergency numbers.
+- 🚨 Detects urgent symptoms and immediately surfaces 108 / 112 guidance.
+
+**What it does NOT do**
+- Does **not** diagnose diseases.
+- Does **not** prescribe prescription medicines.
+- Always recommends confirming with a doctor, PHC, ASHA worker or
+  pharmacist.
+
+**Privacy:** conversations are session-only; voice is processed only to
+transcribe your question.
+        """
     )
 
-    with st.form("add_note", clear_on_submit=True):
-        note = st.text_area("New note")
-        submitted = st.form_submit_button("Save Note", type="primary")
-        if submitted and note.strip():
-            st.session_state.records.append({
-                "text": note,
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-            })
-            st.success("Note saved.")
-
     st.divider()
-    if not st.session_state.records:
-        st.caption("No notes yet.")
-    else:
-        for rec in reversed(st.session_state.records):
-            with st.container(border=True):
-                st.caption(rec["date"])
-                st.write(rec["text"])
+    st.caption(f"Last deployed check: {datetime.now().strftime('%d %b %Y')}")
