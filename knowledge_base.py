@@ -8,9 +8,6 @@ EMERGENCY_CONTACTS = {
     "Ambulance": "108",
     "National Emergency": "112",
     "Health Helpline": "104",
-    "Tele-MANAS Mental Health": "14416",
-    "Women Helpline": "1091",
-    "Child Helpline": "1098",
 }
 
 SYSTEM_PROMPT = (
@@ -169,7 +166,7 @@ KB_ENTRIES = [
         ),
     },
     {
- "topic": "allergy",
+        "topic": "allergy",
         "keywords": ["allergy", "itching", "rash", "hives", "khujli"],
         "answer": (
             "Itching / skin allergy - what helps:\n"
@@ -222,7 +219,7 @@ KB_ENTRIES = [
             "tight clothing.\n"
             "- Do NOT cut, suck, or tie the spot tightly. Do NOT apply "
             "turmeric or herbs.\n"
-            "- Note the snake's colour if safe - never try to it.\n"
+            "- Note the snake's colour if safe - never try to catch it.\n"
             "- Go to the nearest PHC or hospital with anti-snake venom "
             "immediately."
         ),
@@ -230,7 +227,8 @@ KB_ENTRIES = [
 ]
 
 
-def search_kb(query    """Return (score, entry) for the best keyword match, or (0, None)."""
+def search_kb(query):
+    """Return (score, entry) for the best keyword match, or (0, None)."""
     q = (query or "").lower()
     best_score, best_entry = 0, None
     for entry in KB_ENTRIES:
