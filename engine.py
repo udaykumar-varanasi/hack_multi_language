@@ -40,7 +40,6 @@ def _ask_gemini(history, query):
             role = "user" if msg["role"] == "user" else "model"
             contents.append({"role": role, "parts": [{"text": msg["text"]}]})
         contents.append({"role": "user", "parts": [{"text": query}]})
-
         resp = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=contents,
@@ -62,7 +61,6 @@ def _ask_gemini(history, query):
 
 
 def stream_response(history, query):
-    """Returns a dict: {"text": reply, "urgent": bool}"""
     urgent = _is_urgent(query)
     reply = _ask_gemini(history, query)
     if not reply:
