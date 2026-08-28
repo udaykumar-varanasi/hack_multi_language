@@ -1,9 +1,7 @@
-"""Knowledge base — Rural Health Assistant. Safe, non-diagnostic content."""
-
 DISCLAIMER = (
-    "⚕️ This assistant provides general health information only. It does NOT "
-    "diagnose, prescribe, or replace a doctor. For urgent problems call "
-    "108 / 112 immediately."
+    "ArogyaMitra shares general health information for awareness only. "
+    "It is NOT a doctor and does not diagnose or prescribe. Always confirm "
+    "with a doctor, PHC, ASHA worker, or pharmacist before taking any medicine."
 )
 
 EMERGENCY_CONTACTS = {
@@ -11,260 +9,235 @@ EMERGENCY_CONTACTS = {
     "National Emergency": "112",
     "Health Helpline": "104",
     "Tele-MANAS Mental Health": "14416",
-    "KIRAN Crisis Line": "1800-599-0019",
+    "Women Helpline": "1091",
+    "Child Helpline": "1098",
 }
 
-GLOBAL_EMERGENCY_KEYWORDS = [
-    "unconscious", "unresponsive", "not breathing", "severe bleeding",
-    "seizure", "convulsion", "chest pain", "heart attack", "stroke",
-    "snake bite", "snakebite", "poisoning", "suicide", "kill myself",
-    "end my life", "self harm", "overdose", "electric shock", "drowning",
-    "severe burn", "heat stroke", "heatstroke", "pesticide poisoning",
-    "heavy bleeding", "can't breathe", "cannot breathe", "severe injury",
-    "paralysis", "fits",
+SYSTEM_PROMPT = (
+    "You are ArogyaMitra, a friendly rural health guide for villages in "
+    "Andhra Pradesh, India. Rules: 1) General health information only, "
+    "never diagnose. 2) You MAY mention common over-the-counter options "
+    "like paracetamol for fever or ORS for loose motions, with standard "
+    "ADULT package dosing plus cautions. 3) Always advise confirming with "
+    "a doctor, PHC, ASHA worker, or pharmacist. 4) Always say when to see "
+    "a doctor. 5) Reply in the SAME language the user used (Telugu, Hindi "
+    "or English), short simple sentences with bullet points. 6) Under 200 "
+    "words. 7) For emergencies, first say call 108 or 112, then basic "
+    "first aid only. 8) Never suggest prescription medicines like "
+    "antibiotics or steroids, and never give doses for babies under 1 year."
+)
+
+URGENT_KEYWORDS = [
+    "chest pain", "not breathing", "breathless", "unconscious", "seizure",
+    "convulsion", "snake", "poison", "suicide", "bleeding heavily",
+    "heavy bleeding", "accident", "stroke", "slurred", "overdose",
+    "severe burn", "drowning", "dog bite", "fits", "heart attack",
+    "chhati", "chaati", "pamu", "saanp", "nokkindi",
 ]
 
-KNOWLEDGE_BASE = [
+FALLBACK_ANSWER = (
+    "I am not fully sure about that, so I will not guess. "
+    "For any health concern, visit the nearest PHC or call 104. "
+    "If this feels urgent, call 108 or 112 now. "
+    "You can ask me about: fever, dengue, cough and cold, loose motions, "
+    "vomiting, headache, stomach pain, acidity, diabetes, blood pressure, "
+    "allergy, wounds, burns, dog bite, snake bite, pregnancy care, child "
+    "health, stress, or nutrition. "
+    "This is general information only - please consult a doctor."
+)
+
+KB_ENTRIES = [
     {
         "topic": "fever",
-        "title": "Fever",
-        "content": (
-            "Fever is usually the body's natural response to infection.\n\n"
-            "WHAT TO DO:\n"
-            "1. Rest and drink plenty of fluids (water, ORS, soups).\n"
-            "2. Wear light clothing; keep the room airy.\n"
-            "3. Paracetamol may be taken for comfort as per the label dosage.\n"
-            "4. Sponge with lukewarm (NOT cold) water if fever is high.\n\n"
-            "SEE A DOCTOR IF:\n"
-            "- Fever lasts more than 3 days\n"
-            "- Fever with rash, stiff neck, severe headache or confusion\n"
-            "- In malaria/dengue areas: fever with chills needs a blood test the same day"
+        "keywords": ["fever", "jwaram", "bukhar", "temperature",
+                     "shivering"],
+        "answer": (
+            "Fever - what helps:\n"
+            "- Rest and drink plenty of fluids.\n"
+            "- A lukewarm sponge bath can bring temperature down.\n"
+            "- Common tablet for adults: Paracetamol 500 mg, 1 tablet "
+            "every 6 hours after food, maximum 4 in 24 hours.\n"
+            "- Do NOT take ibuprofen or aspirin until dengue is ruled out.\n"
+            "See a doctor if fever lasts more than 3 days, goes above "
+            "103 F, or comes with rash or severe body pain. Babies, "
+            "elderly and pregnant women should see a doctor on day 1."
         ),
-        "keywords": ["fever", "temperature", "jwaram", "bukhar", "hot body"],
-        "urgent_flags": [],
-        "regex_flags": [r"\bfever\b.*\b(fits|convulsion|seizure|unconscious|rash|stiff neck)\b"],
     },
     {
-        "topic": "cough_cold",
-        "title": "Cough and Cold",
-        "content": (
-            "Most coughs and colds are viral and settle in 5-7 days.\n\n"
-            "WHAT TO DO:\n"
-            "1. Drink warm fluids; steam inhalation helps a blocked nose.\n"
-            "2. Rest well; avoid smoke and dust.\n"
-            "3. Honey with warm water soothes the throat (not for babies under 1 year).\n\n"
-            "SEE A DOCTOR IF:\n"
-            "- Cough lasts more than 2 weeks (TB screening advised)\n"
-            "- Blood in sputum, high fever, weight loss\n"
-            "- Breathing difficulty or chest pain"
+        "topic": "dengue",
+        "keywords": ["dengue", "platelet", "mosquito fever"],
+        "answer": (
+            "Dengue - warning signs and care:\n"
+            "- High fever with severe body pain or pain behind the eyes: "
+            "get a dengue test at the PHC on day 1 or 2 (free).\n"
+            "- Do NOT take ibuprofen, aspirin or combiflam - only "
+            "paracetamol.\n"
+            "- Drink lots of fluids: ORS, coconut water, soups.\n"
+            "Go to hospital IMMEDIATELY if: bleeding gums or nose, red "
+            "spots on skin, severe stomach pain, very low urine, or "
+            "drowsiness. Prevention: empty water containers weekly."
         ),
-        "keywords": ["cough", "cold", "khansi", "sore throat", "runny nose", "jalu"],
-        "urgent_flags": ["coughing blood"],
-        "regex_flags": [r"\bcough\b.*\b(blood|breathless)\b"],
     },
     {
-        "topic": "diarrhoea",
-        "title": "Diarrhoea and Dehydration",
-        "content": (
-            "Dehydration — not the germs — is the danger of diarrhoea.\n\n"
-            "WHAT TO DO:\n"
-            "1. ORS is the most important treatment: drink after every loose stool.\n"
-            "2. Continue normal food and breastfeeding — do not starve.\n"
-            "3. Zinc for 14 days helps children recover faster.\n"
-            "4. Wash hands with soap before eating and after the toilet.\n\n"
-            "GO TO HOSPITAL NOW IF:\n"
-            "- Blood in stool, no urine for 8+ hours, sunken eyes\n"
-            "- Skin pinch settles slowly, extreme thirst, drowsiness\n"
-            "- More than 5 villagers affected (possible outbreak — call 104)"
+        "topic": "cough and cold",
+        "keywords": ["cough", "cold", "sneeze", "throat", "daggu",
+                     "khansi", "jukam"],
+        "answer": (
+            "Cough and cold - what helps:\n"
+            "- Warm fluids like soups and pepper-turmeric kashayam.\n"
+            "- Steam inhalation 2 to 3 times a day for blocked nose.\n"
+            "- Salt-water gargle for throat pain. Honey soothes cough "
+            "(not for babies under 1 year).\n"
+            "See a doctor if cough lasts more than 2 weeks, blood in "
+            "sputum, breathing trouble, or weight loss (get TB checked "
+            "at the PHC, testing is free)."
         ),
-        "keywords": ["diarrhoea", "diarrhea", "loose motion", "dast", "vomiting", "ors"],
-        "urgent_flags": ["blood in stool"],
-        "regex_flags": [],
     },
     {
-        "topic": "dengue_malaria",
-        "title": "Dengue and Malaria",
-        "content": (
-            "PREVENTION:\n"
-            "- Empty and scrub water containers weekly; cover all tanks.\n"
-            "- Use mosquito nets; full-sleeve clothes at dawn and dusk.\n\n"
-            "SUSPICION:\n"
-            "- Dengue: high fever with severe body pain, pain behind the eyes.\n"
-            "- Malaria: shaking chills followed by high fever in cycles.\n"
-            "- Get a blood test at the PHC the SAME day.\n\n"
-            "DANGER SIGNS (hospital now): bleeding gums, black stools, severe\n"
-            "stomach pain, persistent vomiting, no urine, drowsiness.\n\n"
-            "IMPORTANT: No aspirin or ibuprofen for dengue — only paracetamol."
+        "topic": "loose motions",
+        "keywords": ["loose motion", "diarrhea", "diarrhoea", "dast",
+                     "motions"],
+        "answer": (
+            "Loose motions - what helps:\n"
+            "- ORS is the most important thing. Mix 1 sachet in 1 litre "
+            "clean water and sip continuously. Adults: 2 to 3 litres a "
+            "day. Homemade: 1 litre water + 6 tsp sugar + half tsp salt.\n"
+            "- Eat bananas, rice, curd rice. Avoid oily food and milk.\n"
+            "- Do NOT take loperamide if you have fever or blood in stool.\n"
+            "See a doctor if more than 6 motions a day, blood in stool, "
+            "fever, or signs of dehydration. Children dehydrate fast - "
+            "go to the PHC early."
         ),
-        "keywords": ["dengue", "malaria", "mosquito", "platelet", "dommu"],
-        "urgent_flags": ["bleeding gums", "black stool"],
-        "regex_flags": [],
+    },
+    {
+        "topic": "vomiting",
+        "keywords": ["vomit", "nausea", "ulti", "kakulu"],
+        "answer": (
+            "Vomiting - what helps:\n"
+            "- Sip ORS or clean water slowly, small sips every 10 "
+            "minutes.\n"
+            "- Rest the stomach 1 to 2 hours, then try banana or rice.\n"
+            "- Ginger water or lemon water with a pinch of salt helps.\n"
+            "See a doctor if vomiting lasts more than 6 hours, blood in "
+            "vomit, severe stomach pain, or after a head injury."
+        ),
     },
     {
         "topic": "headache",
-        "title": "Headache",
-        "content": (
-            "COMMON CAUSES: tension, dehydration, eye strain, missed meals, heat.\n\n"
-            "WHAT TO DO:\n"
-            "1. Rest in a quiet, dim room; drink water.\n"
-            "2. A cold cloth on the forehead may help.\n"
-            "3. Paracetamol may be taken as per label dosage.\n\n"
-            "SEE A DOCTOR IF:\n"
-            "- Sudden worst-ever headache; headache with vomiting and stiff neck\n"
-            "- Headache with fever, weakness, vision problems or confusion"
+        "keywords": ["headache", "head ache", "tala noppi", "sir dard",
+                     "migraine"],
+        "answer": (
+            "Headache - what helps:\n"
+            "- Rest in a quiet, dark room. Drink water - dehydration is "
+            "a common cause.\n"
+            "- Common tablet for adults: Paracetamol 500 mg, 1 tablet "
+            "after food, can repeat after 6 hours (max 4 per day).\n"
+            "- A wet cloth on the forehead helps some people.\n"
+            "Call 108 urgently if: sudden worst-ever headache, headache "
+            "with fever and neck stiffness, blurred vision, weakness on "
+            "one side, or after a head injury."
         ),
-        "keywords": ["headache", "head pain", "tala noppi", "sir dard", "migraine"],
-        "urgent_flags": ["worst headache"],
-        "regex_flags": [r"\bheadache\b.*\b(fits|unconscious|paralysis|stiff neck)\b"],
     },
     {
-        "topic": "pregnancy",
-        "title": "Pregnancy Care",
-        "content": (
-            "DO:\n"
-            "- Register at the nearest PHC in the first trimester.\n"
-            "- Attend all ANC checkups; take iron-folic acid tablets daily.\n"
-            "- Eat an extra meal a day; iron-rich foods (greens, ragi, eggs).\n"
-            "- Plan delivery at a health facility (JSY cash benefit applies).\n\n"
-            "DANGER SIGNS (call 102/108 IMMEDIATELY):\n"
-            "- Bleeding, severe headache with blurred vision, fits\n"
-            "- Swelling of face and hands, reduced baby movements\n"
-            "- Labour before 8 months, water breaking without labour"
+        "topic": "diabetes",
+        "keywords": ["diabetes", "sugar", "madhumeham"],
+        "answer": (
+            "Diabetes - daily care basics:\n"
+            "- Signs: excess thirst, frequent urination, weight loss, "
+            "slow-healing wounds. Free sugar test at the PHC.\n"
+            "- Take prescribed tablets daily - never stop on your own.\n"
+            "- Cut sugar and sweets; add vegetables and a 30 minute "
+            "daily walk.\n"
+            "- Check feet daily for cuts.\n"
+            "Go to hospital if very drowsy or confused, vomiting with "
+            "fast breathing, or a wound is not healing."
         ),
-        "keywords": ["pregnancy", "pregnant", "garbhini", "anc", "delivery", "maternity"],
-        "urgent_flags": ["bleeding during pregnancy", "fits during pregnancy"],
-        "regex_flags": [],
     },
     {
-        "topic": "childcare",
-        "title": "Child Health",
-        "content": (
-            "BASICS:\n"
-            "- Exclusive breastfeeding for the first 6 months.\n"
-            "- Complete the immunization schedule on time.\n"
-            "- Weigh the child monthly at the Anganwadi.\n\n"
-            "DANGER SIGNS (hospital now):\n"
-            "- Refusing feeds, unusually sleepy, difficult breathing\n"
-            "- Fever with fits, less than 3 wet diapers a day\n"
-            "- Any fever in a baby under 3 months\n\n"
-            "NEVER give aspirin to children."
+        "topic": "blood pressure",
+        "keywords": ["blood pressure", "bp", "hypertension", "pressure"],
+        "answer": (
+            "Blood pressure - daily care basics:\n"
+            "- Take prescribed BP tablets daily at the same time, even "
+            "when you feel fine.\n"
+            "- Reduce salt to less than 1 teaspoon a day total.\n"
+            "- Walk 30 minutes daily, avoid tobacco. Free BP checks at "
+            "every PHC.\n"
+            "Call 108 if chest pain, severe headache with blurred "
+            "vision, weakness on one side, or slurred speech - stroke "
+            "signs. Every minute counts."
         ),
-        "keywords": ["child", "baby", "infant", "bidda", "baccha", "breastfeeding"],
-        "urgent_flags": ["refusing feeds"],
-        "regex_flags": [],
     },
     {
-        "topic": "bites_stings",
-        "title": "Bites and Stings",
-        "content": (
-            "SNAKE BITE (call 108 immediately):\n"
-            "1. Keep the victim CALM and STILL — movement spreads venom.\n"
-            "2. Remove rings/watches; immobilise the limb at heart level.\n"
-            "3. Do NOT cut, suck, apply tourniquets, ice, herbs or cow dung.\n"
-            "4. Note the snake's appearance from a distance; never chase it.\n"
-            "5. Anti-snake-venom works best within 4 hours — reach hospital fast.\n\n"
-            "DOG/MONKEY BITE:\n"
-            "- Wash with soap under running water for 15 minutes.\n"
-            "- Anti-rabies vaccine must start the SAME DAY (rabies is fatal once symptoms begin).\n\n"
-            "SCORPION STING:\n"
-            "- Wash area, apply a cold pack; stings in children need hospital care."
+ "topic": "allergy",
+        "keywords": ["allergy", "itching", "rash", "hives", "khujli"],
+        "answer": (
+            "Itching / skin allergy - what helps:\n"
+            "- Apply a cool wet cloth; avoid scratching.\n"
+            "- Tablet for adults: cetirizine 10 mg, 1 tablet at night "
+            "(causes sleepiness - do not drive after).\n"
+            "- Calamine lotion soothes itching.\n"
+            "Call 108 if rash with face or lip swelling or breathing "
+            "difficulty. See a doctor if rash has fever, spreading "
+            "redness with pain, or pus."
         ),
-        "keywords": ["snake", "pamu", "dog bite", "kukka", "scorpion", "bite", "sting", "venom"],
-        "urgent_flags": ["snake bite", "snakebite", "dog bite", "scorpion sting"],
-        "regex_flags": [],
     },
     {
-        "topic": "heat_stroke",
-        "title": "Heat Stroke (Sunstroke)",
-        "content": (
-            "Heat stroke is LIFE THREATENING. Signs: temperature above 40 C,\n"
-            "hot dry skin or profuse sweating, confusion, seizures, fainting.\n\n"
-            "IMMEDIATE ACTION (call 108):\n"
-            "1. Move the person to shade; remove excess clothing.\n"
-            "2. Cool aggressively — wet cloths on neck, armpits, groin; fan continuously.\n"
-            "3. If fully conscious, give ORS/water in sips — NEVER to an unconscious person.\n"
-            "4. Do NOT give paracetamol for heat stroke.\n\n"
-            "PREVENTION: work before 11am and after 4pm in summer, drink water\n"
-            "every 20 minutes, cover the head, take salt with food."
+        "topic": "burns",
+        "keywords": ["burn", "scald", "hot water"],
+        "answer": (
+            "Burns - first aid:\n"
+            "- Cool the burn under gently running cool water for 15 to "
+            "20 minutes. This is the most important step.\n"
+            "- Do NOT apply toothpaste, ghee, oil or ice.\n"
+            "- Cover loosely with a clean dry cloth. Do not burst "
+            "blisters.\n"
+            "Call 108 if the burn is larger than the person's palm, on "
+            "the face or hands, skin is white or charred, or any burn "
+            "in a child."
         ),
-        "keywords": ["heat stroke", "heatstroke", "sunstroke", "endala", "garmi", "loo", "summer"],
-        "urgent_flags": ["heat stroke", "heatstroke"],
-        "regex_flags": [],
     },
     {
-        "topic": "pesticide",
-        "title": "Pesticide Poisoning",
-        "content": (
-            "SIGNS: excessive sweating, drooling, pinpoint pupils, vomiting,\n"
-            "cramps, trembling, breathing difficulty, confusion, seizures.\n\n"
-            "IMMEDIATE ACTION (call 108):\n"
-            "1. Move the victim away from the chemical to fresh air.\n"
-            "2. Remove contaminated clothes; wash skin with soap and water for 15 minutes.\n"
-            "3. Flush eyes with clean water for 15 minutes if affected.\n"
-            "4. Do NOT induce vomiting if the victim is drowsy or convulsing.\n"
-            "5. Carry the pesticide container/label to the hospital.\n\n"
-            "PREVENTION: never spray against the wind, never store pesticides\n"
-            "in drink bottles, never eat or smoke while spraying."
+        "topic": "dog bite",
+        "keywords": ["dog bite", "kukka"],
+        "answer": (
+            "Dog (or cat/monkey) bite - act immediately:\n"
+            "- Wash the wound under running water with soap for 15 full "
+            "minutes.\n"
+            "- Apply antiseptic. Do not apply herbs or chilli.\n"
+            "- Go to the PHC the SAME DAY for anti-rabies vaccine - it "
+            "is free and life-saving. Rabies is fatal once symptoms "
+            "start, but preventable with the vaccine series.\n"
+            "Never skip or delay the vaccine, even for a small scratch."
         ),
-        "keywords": ["pesticide", "spray", "poison", "chemical", "visham", "insecticide"],
-        "urgent_flags": ["pesticide poisoning", "swallowed pesticide"],
-        "regex_flags": [],
     },
     {
-        "topic": "drowning",
-        "title": "Drowning",
-        "content": (
-            "RESCUE:\n"
-            "1. Reach the victim with a stick, rope or tube — do NOT jump in unless trained.\n"
-            "2. Once out, lay the person flat and check breathing for 10 seconds.\n"
-            "3. Not breathing: start CPR — 30 chest compressions in the centre of the chest\n"
-            "(5-6 cm deep, 100-120 per minute); continue until help arrives.\n"
-            "4. Do NOT hang the person upside down to remove water — it wastes minutes.\n"
-            "5. Even after recovery, a hospital check-up is mandatory (delayed lung\n"
-            "complications can occur within 24-72 hours).\n\n"
-            "PREVENTION: fence open wells; supervise children near ponds constantly."
+        "topic": "snake bite",
+        "keywords": ["snake", "snake bite", "snakebite", "pamu"],
+        "answer": (
+            "SNAKE BITE - EMERGENCY. Call 108.\n"
+            "- Keep the person calm and still. Movement spreads venom "
+            "fast.\n"
+            "- Keep the bitten limb BELOW heart level. Remove rings and "
+            "tight clothing.\n"
+            "- Do NOT cut, suck, or tie the spot tightly. Do NOT apply "
+            "turmeric or herbs.\n"
+            "- Note the snake's colour if safe - never try to it.\n"
+            "- Go to the nearest PHC or hospital with anti-snake venom "
+            "immediately."
         ),
-        "keywords": ["drowning", "well", "pond", "neellu", "water accident"],
-        "urgent_flags": ["drowning", "fell in well"],
-        "regex_flags": [],
-    },
-    {
-        "topic": "farmer_distress",
-        "title": "Farmer Distress & Mental Health",
-        "content": (
-            "Debt, crop failure and isolation can feel unbearable — but help is FREE.\n\n"
-            "HELP LINES (24x7, free):\n"
-            "- KIRAN: 1800-599-0019\n"
-            "- Tele-MANAS: 14416\n\n"
-            "WHAT HELPS:\n"
-            "1. Talking to one trusted person reduces risk immediately.\n"
-            "2. Crop insurance (PMFBY), loan rescheduling and relief exist —\n"
-            "   ask the agriculture officer.\n"
-            "3. Warning signs in a loved one: giving away possessions, talking\n"
-            "   about ending life, sudden calm after depression — do NOT leave\n"
-            "   them alone, remove pesticides/weapons, call KIRAN together.\n\n"
-            "You are not alone — lakhs of farmers have received help and recovered."
-        ),
-        "keywords": ["stress", "depression", "mental health", "debt", "crop loss", "suicide"],
-        "urgent_flags": ["suicide", "kill myself", "end my life", "self harm"],
-        "regex_flags": [],
-    },
-    {
-        "topic": "nutrition",
-        "title": "Nutrition & Anaemia",
-        "content": (
-            "ANAEMIA (weakness, pale eyes/nails, tiredness) is very common in\n"
-            "rural women and children.\n\n"
-            "DO:\n"
-            "- Iron-rich foods: greens, ragi, jaggery, dates, eggs, lentils.\n"
-            "- Take iron-folic acid tablets from the Anganwadi/PHC (free).\n"
-            "- Vitamin C (lemon, amla, guava) with meals improves absorption.\n"
-            "- Avoid tea/coffee WITH meals — it blocks iron absorption.\n\n"
-            "SEE A DOCTOR IF: severe tiredness, breathlessness on light work,\n"
-            "or pale palms — a simple haemoglobin blood test confirms it."
-        ),
-        "keywords": ["nutrition", "anaemia", "anemia", "weakness", "diet", "iron", "kamzori"],
-        "urgent_flags": [],
-        "regex_flags": [],
     },
 ]
+
+
+def search_kb(query    """Return (score, entry) for the best keyword match, or (0, None)."""
+    q = (query or "").lower()
+    best_score, best_entry = 0, None
+    for entry in KB_ENTRIES:
+        score = 0
+        for kw in entry["keywords"]:
+            if kw.lower() in q:
+                score += 2 if len(kw) > 4 else 1
+        if score > best_score:
+            best_score, best_entry = score, entry
+    return best_score, best_entry
