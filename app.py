@@ -70,12 +70,8 @@ st.info(DISCLAIMER)
 
 
 def get_recorder():
-    """Returns a record(label) -> AudioSegment function, or None."""
-    try:
-        from streamlit_audiorecorder import audiorecorder
-        return lambda label: audiorecorder(label, "Tap to stop", key="mic")
-    except ImportError:
-        pass
+    """Returns a record(label) -> audio object function, or None."""
+    # Preferred: audio-recorder-streamlit (works on newer Python versions)
     try:
         from audio_recorder_streamlit import audio_recorder
         return lambda label: audio_recorder(
@@ -84,6 +80,12 @@ def get_recorder():
             neutral_color="#45818e",
             key="mic"
         )
+    except ImportError:
+        pass
+    # Fallback: streamlit-audiorecorder
+    try:
+        from streamlit_audiorecorder import audiorecorder
+        return lambda label: audiorecorder(label, "Tap to stop", key="mic")
     except ImportError:
         return None
 
@@ -106,7 +108,9 @@ if page == "Health Info Chat":
         )
         st.caption("Quick topics")
         suggestions = ["Fever", "Cough and cold", "Loose motions", "Headache",
-                       "Feeling stressed", "Child health", "Pregnancy care", "Snake bite"]
+                       "Body pain", "Stomach pain", "Feeling stressed", "Snake bite",
+                       "Diabetes", "Blood pressure", "Child health", "Pregnancy care",
+                       "Allergy", "Tooth pain", "Dog bite", "Nutrition"]
         cols = st.columns(4)
         clicked = None
         for i, s in enumerate(suggestions):
