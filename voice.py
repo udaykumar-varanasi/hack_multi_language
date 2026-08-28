@@ -1,75 +1,52 @@
-"""Voice layer for Rural Health Assistant.
-STT: SpeechRecognition (free Google endpoint, multilingual — your engine.py
-     already handles Telugu/Hindi via langdetect + Gemini translation).
-TTS: gTTS — speaks the reply back in the user's language."""
-
-from __future__ import annotations
-
-import base64
 import io
-import tempfile
 
 SUPPORTED_LANGS = {
-    "English": "en-IN",
-    "తెలుగు (Telugu)": "te-IN",
-    "हिन्दी (Hindi)": "hi-IN",
+    "en-IN": "English",
+    "te-IN": "తెలుగు (Telugu)",
+    "hi-IN": "हिन्दी (Hindi)",
+}
+
+_LANG_MAP = {
+    "en-IN": "en-US",
+    "te-IN": "te-IN",
+    "hi-IN": "hi-IN",
 }
 
 
-# ---------------- Speech → Text ----------------
-def transcribe(audio_bytes: bytes, lang_code: str = "en-IN") -> str | None:
-    """Convert recorded mic audio to text. Returns None on any failure
-    (app stays fully usable by typing — graceful degradation)."""
-    if not audio_bytes:
-        return None
+def transcribe(wav_bytes, lang_code="en-IN"):
+    """Convert recorded WAV audio bytes to text. Returns '' on failure."""
     try:
         import speech_recognition as sr
-
-        wav_bytes = _ensure_wav(audio_bytes)
-
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            f.write(wav_bytes)
-            path = f.name
-
-        r = sr.Recognizer()
-        with sr.AudioFile(path) as source:
-            r.adjust_for_ambient_noise(source, duration=0.3)
-            audio_data = r.record(source)
-        return r.recognize_google(audio_data, language=lang_code)
-    except Exception:
-        return None
+        recognizer = sr.Recognizer()
+        audio_file = io.BytesIO(wav_bytes)
+        with sr.AudioFile(audio_file) as source:
+            audio_data = recognizer.record(source)
+        sr_lang = _LANG_MAP.get(lang_code, "-US")
+        text = recognizer.recognize_google(audio_data, language=sr_lang)
+        return text.strip()
+    except Exception as e:
+        print("Transcribe error:", e)
+        return ""
 
 
-def _ensure_wav(audio_bytes: bytes) -> bytes:
-    """Browser mic gives wav via audiorecorder; convert anything else via pydub."""
-    if audio_bytes[:4] == b"RIFF":          # already WAV
-        return audio_bytes
-    try:
-        from pydub import AudioSegment
-        seg = AudioSegment.from_file(io.BytesIO(audio_bytes))
-        buf = io.BytesIO()
-        seg.export(buf, format="wav")
-        return buf.getvalue()
-    except Exception:
-        return audio_bytes
-
-
-# ---------------- Text → Speech ----------------
-def speak_html(text: str, lang_code: str = "en-IN") -> str:
-    """Returns an <audio controls autoplay> HTML block for the reply."""
+def speak_html(text, lang_code="en-IN"):
+    """Return an <audio> HTML snippet that speaks the text, or ''."""
     try:
         from gtts import gTTS
-        tts_lang = "te" if lang_code.startswith("te") else (
-                   "hi" if lang_code.startswith("hi") else "en")
-        clean = (text or "").replace("*", "").replace("#", "").replace("`", "")
-        clean = clean[:1800]  # keep TTS fast
-        if not clean.strip():
-            return ""
+        import base64
+        safe_text = (text or "")[:900]
+        sr_lang = _LANG_MAP.get(lang_code, "en-US")
+        tts = gTTS(text=safe_text, lang=sr_lang)
         buf = io.BytesIO()
-        gTTS(text=clean, lang=tts_lang).write_to_fp(buf)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        return (f'<audio autoplay controls style="width:100%" '
-                f'src="data:audio/mp3;base64,{b64}"></audio>')
-    except Exception:
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        b64 = base64.b64encode(buf.read()).decode()
+        html = (
+            '<audio controls style="width:100%;height:36px;">'
+            '<source src="data:audio/mp3;base64,' + b64 + '" '
+            'type="audio/mp3"></audio>'
+        )
+        return html
+    except Exception as e:
+        print("TTS error:", e)
         return ""
