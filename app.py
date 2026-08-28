@@ -150,7 +150,7 @@ if page == "💬 Health Info Chat":
                     urgent_placeholder.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
                     urgent_shown = True
                 full_text += chunk
-                placeholder.markdown(full_text +▌")
+                placeholder.markdown(full_text +")
             placeholder.markdown(full_text)
             audio_html = speak_html(full_text, st.session_state.get("voice_lang", "en-IN"))
             if audio_html:
