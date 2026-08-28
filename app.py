@@ -14,6 +14,10 @@ from voice import transcribe, speak_html, SUPPORTED_LANGS
 
 st.set_page_config(page_title="Rural Health Assistant", page_icon="⚕️", layout="wide")
 
+# ---------- Show only these emergency contacts in the sidebar ----------
+DISPLAY_CONTACTS = {name: num for name, num in EMERGENCY_CONTACTS.items()
+                    if name in ("Ambulance", "National Emergency", "Health Helpline")}
+
 st.markdown("""
 <style>
     .block-container { padding-top: 1.5rem; max-width: 900px; }
@@ -45,7 +49,7 @@ with st.sidebar:
     st.caption("Non-diagnostic healthcare accessibility platform")
 
     st.markdown("### 🚨 Emergency Contacts")
-    for name, number in EMERGENCY_CONTACTS.items():
+    for name, number in DISPLAY_CONTACTS.items():
         st.markdown(f"**{name}:** `{number}`")
 
     st.divider()
@@ -65,6 +69,24 @@ with st.sidebar:
     st.caption("Built for HackSprint 2.0 — Dept. of CSE, AITAM")
 
 st.info(DISCLAIMER, icon="⚕️")
+
+# ---------- recorder import (works with either package) ----------
+def get_recorder():
+    """Returns a record(label) -> AudioSegment function, or None."""
+    try:
+        from streamlit_audiorecorder import audiorecorder
+        return lambda label: audiorecorder(label, "⏹️ Tap to stop", key="mic")
+    except ImportError:
+        pass
+    try:
+        from audio_recorder_streamlit import audio_recorder
+        return lambda label: audio_recorder(
+            text=label, recording_color="#e63946",
+            neutral_color="#45818e", key="mic")
+    except ImportError:
+        return None
+
+RECORDER = get_recorder()
 
 # ================= PAGE 1: CHAT (with voice) =================
 if page == "💬 Health Info Chat":
@@ -128,7 +150,7 @@ if page == "💬 Health Info Chat":
                     urgent_placeholder.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
                     urgent_shown = True
                 full_text += chunk
-                placeholder.markdown(full_text + "▌")
+                placeholder.markdown(full_text +▌")
             placeholder.markdown(full_text)
             audio_html = speak_html(full_text, st.session_state.get("voice_lang", "en-IN"))
             if audio_html:
@@ -142,17 +164,12 @@ if page == "💬 Health Info Chat":
         st.rerun()
 
     # ---- 🎙️ VOICE INPUT: record → transcribe → confirm → send ----
-    try:
-        from streamlit_audiorecorder import audiorecorder
-        has_recorder = True
-    except ImportError:
-        has_recorder = False
-        st.warning("🎙️ Voice needs `streamlit-audiorecorder` in requirements.txt — "
-                   "add it and redeploy to enable the mic.")
-
-    if has_recorder:
+    if RECORDER is None:
+        st.warning("🎙️ Voice input needs a recorder package in requirements.txt — "
+                   "add `streamlit-audiorecorder` or `audio-recorder-streamlit` and reboot the app.")
+    else:
         st.markdown("##### 🎙️ Or speak your question")
-        audio = audiorecorder("🎙️ Tap to record", "⏹️ Tap to stop", key="mic")
+        audio = RECORDER("🎙️ Tap to record")
 
         if audio is not None and len(audio) > 0:
             buf = io.BytesIO()
