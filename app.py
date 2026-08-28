@@ -185,7 +185,8 @@ elif page == "📍 Find Facilities":
 
     st.divider()
     st.markdown("##### ☎️ Quick emergency dialing")
-    st.markdown(emergency_block().replace("\n", "  \n"))
+    for label, num in EMERGENCY_CONTACTS.items():
+        st.markdown(f"- **{label}:** {num}")
 
 else:
     st.title("About ArogyaMitra")
