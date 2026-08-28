@@ -2,7 +2,7 @@ import hashlib
 
 import streamlit as st
 from datetime import datetime
-from engine import stream_response
+from engine import stream_response, emergency_block
 from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
 from voice import transcribe, speak_html, SUPPORTED_LANGS
@@ -15,8 +15,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded",
 )
-
-CURSOR = " ▌"
 
 URGENT_BANNER_HTML = (
     '<div style="background:#b00020;color:#fff;padding:12px 16px;'
@@ -121,23 +119,25 @@ if page == "💬 Health Info Chat":
             placeholder = st.empty()
             audio_slot = st.empty()
 
-            result = stream_response(history_so_far, latest)
-            reply_text = result.get("text", "")
-            urgent = result.get("urgent", False)
+            # --- consume the streaming generator from engine.py ---
+            shown = ""
+            for chunk in stream_response(history_so_far, latest):
+                shown += chunk
+                placeholder.markdown(shown + " ▌")
+            placeholder.markdown(shown)
 
-            for i in range(0, len(reply_text), 6):
-                placeholder.markdown(reply_text[: i + 6] + CURSOR)
-            placeholder.markdown(reply_text)
+            urgent = bool(stream_response.last_urgent)
+            full_text = stream_response.last_full_text or shown
 
             if urgent:
                 urgent_banner.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
 
-            audio_html = speak_html(reply_text, st.session_state["voice_lang"])
+            audio_html = speak_html(full_text, st.session_state["voice_lang"])
             if audio_html:
                 audio_slot.markdown(audio_html, unsafe_allow_html=True)
 
         st.session_state.chat_history.append(
-            {"role": "assistant", "text": reply_text, "urgent": urgent,
+            {"role": "assistant", "text": full_text, "urgent": urgent,
              "audio": audio_html}
         )
         st.rerun()
@@ -185,8 +185,7 @@ elif page == "📍 Find Facilities":
 
     st.divider()
     st.markdown("##### ☎️ Quick emergency dialing")
-    for label, num in EMERGENCY_CONTACTS.items():
-        st.markdown(f"- **{label}:** {num}")
+    st.markdown(emergency_block().replace("\n", "  \n"))
 
 else:
     st.title("About ArogyaMitra")
