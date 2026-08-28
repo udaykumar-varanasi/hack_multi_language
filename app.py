@@ -68,27 +68,48 @@ if page == "💬 Health Info Chat":
                 with st.expander("🔊 Listen"):
                     st.markdown(audio, unsafe_allow_html=True)
 
+    # ---- voice input: imports FIRST, separately from the call ----
     wav_bytes = None
-    recorder_available = True
+    recorder_kind = "none"
+    audio_recorder = None
+    st_audiorecorder = None
+
     try:
         from audio_recorder_streamlit import audio_recorder
-        wav_bytes = audio_recorder(
-            text="🎙️ Speak (click to record)",
-            recording_color="#e74c3c",
-            neutral_color="#6c757d",
-            icon_size="2x",
-            key="voice_recorder",
-            return_bytes="wav",
-        )
-    except Exception:
+        recorder_kind = "ar"
+    except Exception as e:
+        print("audio_recorder_streamlit import failed:", e)
+
+    if recorder_kind == "none":
         try:
             from streamlit_audiorecorder import st_audiorecorder
-            wav_bytes = st_audiorecorder("🎙️ Speak", key="voice_recorder2")
-        except Exception:
-            recorder_available = False
+            recorder_kind = "sa"
+        except Exception as e:
+            print("streamlit_audiorecorder import failed:", e)
 
-    if not recorder_available:
-        st.caption("🎙️ Voice input unavailable - please type your question.")
+    if recorder_kind == "ar":
+        try:
+            wav_bytes = audio_recorder(
+                text="Click to record",
+                recording_color="#e74c3c",
+                neutral_color="#6c757d",
+                icon_size="2x",
+                key="voice_recorder",
+                return_bytes="wav",
+            )
+        except Exception as e:
+            print("audio_recorder call failed:", e)
+            wav_bytes = None
+    elif recorder_kind == "sa":
+        try:
+            wav_bytes = st_audiorecorder(
+                "Click to record", key="voice_recorder2"
+            )
+        except Exception as e:
+            print("st_audiorecorder call failed:", e)
+            wav_bytes = None
+    else:
+        st.caption("Voice input unavailable - please type your question.")
 
     spoken_text = ""
     if wav_bytes:
@@ -119,15 +140,14 @@ if page == "💬 Health Info Chat":
             placeholder = st.empty()
             audio_slot = st.empty()
 
-            # --- consume the streaming generator from engine.py ---
             shown = ""
             for chunk in stream_response(history_so_far, latest):
                 shown += chunk
-                placeholder.markdown(shown + " ▌")
+                placeholder.markdown(shown + " |")
             placeholder.markdown(shown)
 
-            urgent = bool(stream_response.last_urgent)
-            full_text = stream_response.last_full_text or shown
+            urgent = bool(getattr(stream_response, "last_urgent", False))
+            full_text = getattr(stream_response, "last_full_text", "") or shown
 
             if urgent:
                 urgent_banner.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
@@ -184,7 +204,7 @@ elif page == "📍 Find Facilities":
             st.map(map_df)
 
     st.divider()
-    st.markdown("##### ☎️ Quick emergency dialing")
+    st.markdown("##### Quick emergency dialing")
     for label, num in EMERGENCY_CONTACTS.items():
         st.markdown(f"- **{label}:** {num}")
 
