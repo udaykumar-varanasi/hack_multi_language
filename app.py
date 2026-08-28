@@ -70,8 +70,6 @@ st.info(DISCLAIMER)
 
 
 def get_recorder():
-    """Returns a record(label) -> audio object function, or None."""
-    # Preferred: audio-recorder-streamlit (works on newer Python versions)
     try:
         from audio_recorder_streamlit import audio_recorder
         return lambda label: audio_recorder(
@@ -82,7 +80,6 @@ def get_recorder():
         )
     except ImportError:
         pass
-    # Fallback: streamlit-audiorecorder
     try:
         from streamlit_audiorecorder import audiorecorder
         return lambda label: audiorecorder(label, "Tap to stop", key="mic")
@@ -140,6 +137,7 @@ if page == "Health Info Chat":
     if needs_reply:
         latest = st.session_state.chat_history[-1]["text"]
         history_so_far = st.session_state.chat_history[:-1]
+        audio_html = None
         with st.chat_message("assistant"):
             placeholder = st.empty()
             urgent_placeholder = st.empty()
