@@ -30,8 +30,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 URGENT_BANNER_HTML = (
-    "<div class='urgent-banner'>URGENT: This may be serious - call 108 (Ambulance) "
-    "or 112 (Emergency) now, or go to nearest hospital.</div>"
+    "<div class='urgent-banner'>URGENT: This may be serious - call 108 "
+    "(Ambulance) or 112 (Emergency) now, or go to nearest hospital.</div>"
 )
 
 if "chat_history" not in st.session_state:
@@ -79,8 +79,11 @@ def get_recorder():
     try:
         from audio_recorder_streamlit import audio_recorder
         return lambda label: audio_recorder(
-            text=label, recording_color="#e63946",
-            neutral_color="#45818e", key="mic")
+            text=label,
+            recording_color="#e63946",
+            neutral_color="#45818e",
+            key="mic"
+        )
     except ImportError:
         return None
 
@@ -158,8 +161,7 @@ if page == "Health Info Chat":
         st.rerun()
 
     if RECORDER is None:
-        st.warning("Voice input needs a recorder package in requirements.txt - "
-                   "add streamlit-audiorecorder and reboot the app.")
+        st.warning("Voice input needs a recorder package in requirements.txt.")
     else:
         st.markdown("##### Speak your question")
         audio = RECORDER("Tap to record")
@@ -172,7 +174,7 @@ if page == "Health Info Chat":
             except Exception:
                 wav_data = bytes(audio)
 
-            sig = hashlib.md5(wav_datahexdigest()
+            sig = hashlib.md5(wav_data).hexdigest()
             if st.session_state.get("last_rec_sig") != sig:
                 st.session_state.last_rec_sig = sig
                 with st.spinner("Understanding your speech..."):
@@ -181,8 +183,7 @@ if page == "Health Info Chat":
                     st.session_state.heard_text = heard.strip()
                 else:
                     st.session_state.pop("heard_text", None)
-                    st.warning("Sorry, I couldn't understand that. "
-                               "Try again closer to the mic, or type below.")
+                    st.warning("Sorry, I could not understand that. Try again or type below.")
                 st.rerun()
 
         if st.session_state.get("heard_text"):
@@ -201,7 +202,8 @@ if page == "Health Info Chat":
             "Your question",
             placeholder="e.g. I have fever since 2 days...",
             label_visibility="collapsed",
-               submitted = st.form_submit_button("Send", type="primary", use_container_width=True)
+        )
+        submitted = st.form_submit_button("Send", type="primary", use_container_width=True)
     if submitted and query and query.strip():
         st.session_state.chat_history.append({"role": "user", "text": query.strip()})
         st.rerun()
@@ -219,7 +221,7 @@ elif page == "Find Healthcare":
         lon = lc2.number_input("Longitude", value=84.05, format="%.4f")
         user_coords = (lat, lon)
 
-    search_q = st.text_input("Search by need (e.g. 'emergency', 'maternity', 'pediatric')", "")
+    search_q = st.text_input("Search by need (e.g. emergency, maternity, pediatric)", "")
     results = search_facilities(search_q, user_coords=user_coords)
 
     for f in results:
@@ -245,8 +247,10 @@ elif page == "Reminders":
             r_time = st.time_input("Time")
         submitted = st.form_submit_button("Add Reminder", type="primary")
         if submitted and r_title.strip():
-            st.session_state.reminders({
-                "title": r_title, "date": str(r_date), "time": str(r_time),
+            st.session_state.reminders.append({
+                "title": r_title,
+                "date": str(r_date),
+                "time": str(r_time),
                 "added": datetime.now().strftime("%Y-%m-%d %H:%M"),
             })
             st.success(f"Reminder added: {r_title} on {r_date} at {r_time}")
@@ -278,7 +282,8 @@ elif page == "My Health Notes":
         submitted = st.form_submit_button("Save Note", type="primary")
         if submitted and note.strip():
             st.session_state.records.append({
-                "text": note, "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "text": note,
+                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
             })
             st.success("Note saved.")
 
@@ -288,5 +293,5 @@ elif page == "My Health Notes":
     else:
         for rec in reversed(st.session_state.records):
             with st.container(border=True):
-                st.caption["date"])
-                st(rec["text"])
+                st.caption(rec["date"])
+                st.write(rec["text"])
