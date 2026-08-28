@@ -7,4 +7,12 @@ gTTS>=2.4
 pydub>=0.25.1
 streamlit-audiorecorder>=0.0.5
 audio-recorder-streamlit>=0.0.8
+streamlit
+google-genai
+scikit-learn
+langdetect
+SpeechRecognition
+gtts
+pandas
+audio-recorder-streamlit
 
