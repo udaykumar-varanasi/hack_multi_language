@@ -45,8 +45,7 @@ if "records" not in st.session_state:
 
 # ---------- sidebar ----------
 with st.sidebar:
-    st.markdown("## ⚕️ Rural Health Assistant")
-    st.caption("Non-diagnostic healthcare accessibility platform")
+    st.markdown("## ⚕️ Rural Health Assistant    st.caption("Non-diagnostic healthcare accessibility platform")
 
     st.markdown("### 🚨 Emergency Contacts")
     for name, number in DISPLAY_CONTACTS.items():
@@ -75,7 +74,7 @@ def get_recorder():
     """Returns a record(label) -> AudioSegment function, or None."""
     try:
         from streamlit_audiorecorder import audiorecorder
-        return lambda label: audiorecorder(label, "⏹️ Tap to stop", key="mic")
+        return lambda label: audiorecorder(label, "Tap to stop", key="mic")
     except ImportError:
         pass
     try:
@@ -88,22 +87,24 @@ def get_recorder():
 
 RECORDER = get_recorder()
 
+CURSOR = chr(0x258C)  # typing-cursor character used while streaming
+
 # ================= PAGE 1: CHAT (with voice) =================
-if page == "💬 Health Info Chat":
+if page == "Health Info Chat" or page == "💬 Health Info Chat":
     st.title("Health Information Assistant")
-    st.caption("Type below, or 🎙️ press record and just speak — Telugu, Hindi or English.")
+    st.caption("Type below, or press record and just speak — Telugu, Hindi or English.")
 
     # Voice language selector (controls both listening and spoken reply)
     v1, _v2 = st.columns([1, 2])
-    voice_lang_name = v1.selectbox("🗣️ Voice language", list(SUPPORTED_LANGS.keys()))
+    voice_lang_name = v1.selectbox("Voice language", list(SUPPORTED_LANGS.keys()))
     voice_lang = SUPPORTED_LANGS[voice_lang_name]
     st.session_state["voice_lang"] = voice_lang
 
     # ---- Welcome + quick topics (first visit only) ----
     if not st.session_state.chat_history:
         st.success(
-            "👋 **Welcome!** I'm here to give you general health information. "
-            "Type a question, press 🎙️ to speak, or tap a topic."
+            "Welcome! I'm here to give you general health information. "
+            "Type a question, press the mic button to speak, or tap a topic."
         )
         st.caption("Quick topics")
         suggestions = ["Fever", "Cough and cold", "Loose motions", "Headache",
@@ -150,7 +151,7 @@ if page == "💬 Health Info Chat":
                     urgent_placeholder.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
                     urgent_shown = True
                 full_text += chunk
-                placeholder.markdown(full_text +")
+                placeholder.markdown(full_text + CURSOR)
             placeholder.markdown(full_text)
             audio_html = speak_html(full_text, st.session_state.get("voice_lang", "en-IN"))
             if audio_html:
@@ -163,13 +164,13 @@ if page == "💬 Health Info Chat":
         })
         st.rerun()
 
-    # ---- 🎙️ VOICE INPUT: record → transcribe → confirm → send ----
+    # ---- VOICE INPUT: record -> transcribe -> confirm -> send ----
     if RECORDER is None:
-        st.warning("🎙️ Voice input needs a recorder package in requirements.txt — "
-                   "add `streamlit-audiorecorder` or `audio-recorder-streamlit` and reboot the app.")
+        st.warning("Voice input needs a recorder package in requirements.txt — "
+                   "add streamlit-audiorecorder or audio-recorder-streamlit and reboot the app.")
     else:
-        st.markdown("##### 🎙️ Or speak your question")
-        audio = RECORDER("🎙️ Tap to record")
+        st.markdown("##### Or speak your question")
+        audio = RECORDER("Tap to record")
 
         if audio is not None and len(audio) > 0:
             buf = io.BytesIO()
@@ -182,7 +183,7 @@ if page == "💬 Health Info Chat":
             sig = hashlib.md5(wav_data).hexdigest()
             if st.session_state.get("last_rec_sig") != sig:
                 st.session_state.last_rec_sig = sig
-                with st.spinner("Understanding your speech…"):
+                with st.spinner("Understanding your speech..."):
                     heard = transcribe(wav_data, st.session_state.get("voice_lang", "en-IN"))
                 if heard and heard.strip():
                     st.session_state.heard_text = heard.strip()
@@ -194,13 +195,13 @@ if page == "💬 Health Info Chat":
 
         # Confirm what was heard (protects against accents/misrecognition)
         if st.session_state.get("heard_text"):
-            st.success(f"🗣️ I heard: **{st.session_state['heard_text']}**")
+            st.success(f"I heard: **{st.session_state['heard_text']}**")
             c1, c2 = st.columns(2)
-            if c1.button("✅ Send this", type="primary", use_container_width=True):
+            if c1.button("Send this", type="primary", use_container_width=True):
                 q = st.session_state.pop("heard_text")
                 st.session_state.chat_history.append({"role": "user", "text": q})
                 st.rerun()
-            if c2.button("❌ Discard", use_container_width=True):
+            if c2.button("Discard", use_container_width=True):
                 st.session_state.pop("heard_text", None)
                 st.rerun()
 
@@ -208,21 +209,21 @@ if page == "💬 Health Info Chat":
     with st.form("chat_form", clear_on_submit=True):
         query = st.text_input(
             "Your question",
-            placeholder="e.g. I have fever since 2 days…",
+            placeholder="e.g. I have fever since 2 days...",
             label_visibility="collapsed",
         )
-        submitted = st.form_submit_button("Send ➤", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Send", type="primary", use_container_width=True)
     if submitted and query and query.strip():
         st.session_state.chat_history.append({"role": "user", "text": query.strip()})
         st.rerun()
 
 # ================= PAGE 2: LOCATOR =================
-elif page == "🏥 Find Healthcare":
+elif page == "Find Healthcare" or page == "🏥 Find Healthcare":
     st.title("Find Nearby Healthcare")
     st.caption("Demo dataset near Tekkali, AP. Distances are approximate "
                "unless you share your location below.")
 
-    use_loc = st.checkbox("📍 Use my location for accurate distances")
+    use_loc = st.checkbox("Use my location for accurate distances")
     user_coords = None
     if use_loc:
         lc1, lc2 = st.columns(2)
@@ -237,14 +238,14 @@ elif page == "🏥 Find Healthcare":
         with st.container(border=True):
             c1, c2 = st.columns([3, 1])
             with c1:
-                st.markdown(f"### {f['name']}")
+                st.markdown(f### {f['name']}")
                 st.markdown(f"**Type:** {f['type']}  |  **Services:** {f['services']}")
-                st.markdown(f"📞 {f['phone']}")
-            with c2:
+                st.markdown(f"Phone: {f['phone']}")
+            with c:
                 st.metric("Distance", f"{f['distance_km']} km")
 
 # ================= PAGE 3: REMINDERS =================
-elif page == "⏰ Reminders":
+elif page == "Reminders" or page == "⏰ Reminders":
     st.title("Medicine & Appointment Reminders")
 
     with st.form("add_reminder", clear_on_submit=True):
@@ -274,12 +275,12 @@ elif page == "⏰ Reminders":
             with c1:
                 st.markdown(f"**{r['title']}** — {r['date']} at {r['time']}")
             with c2:
-                if st.button("✕", key=f"del_{i}"):
+                if st.button("Delete", key=f"del_{i}"):
                     st.session_state.reminders.remove(r)
                     st.rerun()
 
 # ================= PAGE 4: HEALTH NOTES =================
-elif page == "📋 My Health Notes":
+elif page == "My Health Notes" or page == "📋 My Health Notes":
     st.title("My Health Notes")
     st.caption(
         "A private, local space to jot down symptoms, visit summaries, or "
