@@ -7,3 +7,7 @@ gTTS>=2.4
 pandas
 audio-recorder-streamlit>=0.0.8
 streamlit-audiorecorder>=0.0.5
+SpeechRecognition>=3.10
+gTTS>=2.4
+pydub>=0.25.1
+streamlit-mic-recorder
