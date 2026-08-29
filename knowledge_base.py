@@ -24,8 +24,7 @@ SYSTEM_PROMPT = (
     "antibiotics or steroids, and never give doses for babies under 1 year."
 )
 
-URGENT_KEYWORDS = [
-    "chest pain", "not breathing", "breathless", "unconscious", "seizure",
+URGENT_KEYWORDS =    "chest pain", "not breathing", "breathless", "unconscious", "seizure",
     "convulsion", "snake", "poison", "suicide", "bleeding heavily",
     "heavy bleeding", "accident", "stroke", "slurred", "overdose",
     "severe burn", "drowning", "dog bite", "fits", "heart attack",
@@ -37,9 +36,10 @@ FALLBACK_ANSWER = (
     "For any health concern, visit the nearest PHC or call 104. "
     "If this feels urgent, call 108 or 112 now. "
     "You can ask me about: fever, dengue, cough and cold, loose motions, "
-    "vomiting, headache, stomach pain, acidity, diabetes, blood pressure, "
-    "allergy, wounds, burns, dog bite, snake bite, pregnancy care, child "
-    "health, stress, or nutrition. "
+    "vomiting, headache, stomach pain, acidity, constipation, wounds, "
+    "burns, diabetes, blood pressure, allergy, dog bite, snake bite, "
+    "toothache, ear pain, eye problems, jaundice, periods, pregnancy "
+    "care, child health, stress, or nutrition. "
     "This is general information only - please consult a doctor."
 )
 
@@ -61,6 +61,72 @@ KB_ENTRIES = [
         ),
     },
     {
+        "topic": "stomach pain",
+        "keywords": ["stomach pain", "stomach ache", "tummy", "pet dard",
+                     "kadoopu noppi", "abdominal pain", "belly pain",
+                     "pet noppi"],
+        "answer": (
+            "Stomach pain - what helps:\n"
+            "- Sip warm water. Rest. Avoid oily, spicy food for a day.\n"
+            "- A hot water bag on the belly relaxes cramps.\n"
+            "- If there is gas or bloating, walking for 10 minutes and "
+            "an antacid (like Gelusil, 1 spoon after food) may help.\n"
+            "Do NOT take painkillers like ibuprofen on an empty stomach.\n"
+            "Go to a doctor or call 108 URGENTLY if: pain is very severe "
+            "or on the lower right side, vomiting blood, blood in stool, "
+            "belly is hard like a board, pain after an injury, or if it "
+            "is a pregnant woman with pain."
+        ),
+    },
+    {
+        "topic": "acidity",
+        "keywords": ["acidity", "gas", "heartburn", "acid reflux",
+                     "adagi", "bloating", "indigestion", "ajiranam"],
+        "answer": (
+            "Acidity / gas - what helps:\n"
+            "- Eat small meals on time; do not skip meals.\n"
+            "- Avoid tea/coffee on an empty stomach, spicy and fried "
+            "food, and lying down right after eating.\n"
+            "- Cold milk or cold water gives quick relief.\n"
+            "- Antacid gel (1-2 spoons after meals or bedtime) helps.\n"
+            "See a doctor if burning lasts more than 2 weeks, you are "
+            "losing weight, vomiting blood, or black stools appear."
+        ),
+    },
+    {
+        "topic": "constipation",
+        "keywords": ["constipation", "motion problem", "kabz",
+                     "malabaddhata", "not passing stool", "hard stool"],
+        "answer": (
+            "Constipation - what helps:\n"
+            "- Drink 8-10 glasses of water a day.\n"
+            "- Eat more fiber: vegetables, fruits (papaya is excellent), "
+            "whole grains. Soaked raisins at night help.\n"
+            "- Walk 20-30 minutes daily. Go to the toilet at the same "
+            "time every morning - do not suppress the urge.\n"
+            "See a doctor if no motion for more than 4-5 days, severe "
+            "pain, vomiting, blood in stool, or if you are elderly with "
+            "sudden constipation."
+        ),
+    },
+    {
+        "topic": "wound",
+        "keywords": ["wound", "cut", "injury", "bleeding", "gaya",
+                     "scratched"],
+        "answer": (
+            "Cuts and wounds - first aid:\n"
+            "- Wash your hands, then wash the wound with clean running "
+            "water and soap around it.\n"
+            "- Press with a clean cloth for 10 minutes to stop bleeding.\n"
+            "- Apply antiseptic (like Dettol/Savlon, diluted) and cover "
+            "with a clean bandage. Change daily.\n"
+            "Go to the PHC if: bleeding does not stop after 15 minutes "
+            "of pressure, the cut is deep or gaping, caused by rust or "
+            "a dirty object (need tetanus shot), or shows pus, redness "
+            "spreading, or fever later."
+        ),
+    },
+    {
         "topic": "dengue",
         "keywords": ["dengue", "platelet", "mosquito fever"],
         "answer": (
@@ -70,7 +136,7 @@ KB_ENTRIES = [
             "- Do NOT take ibuprofen, aspirin or combiflam - only "
             "paracetamol.\n"
             "- Drink lots of fluids: ORS, coconut water, soups.\n"
-            "Go to hospital IMMEDIATELY if: bleeding gums or nose, red "
+            "Go to hospital IMMEDIATE if: bleeding gums or nose, red "
             "spots on skin, severe stomach pain, very low urine, or "
             "drowsiness. Prevention: empty water containers weekly."
         ),
@@ -78,7 +144,7 @@ KB_ENTRIES = [
     {
         "topic": "cough and cold",
         "keywords": ["cough", "cold", "sneeze", "throat", "daggu",
-                     "khansi", "jukam"],
+                     "khansi", "jukam", "sore throat"],
         "answer": (
             "Cough and cold - what helps:\n"
             "- Warm fluids like soups and pepper-turmeric kashayam.\n"
@@ -195,8 +261,124 @@ KB_ENTRIES = [
         ),
     },
     {
+        "topic": "toothache",
+        "keywords": ["toothache", "tooth pain", "dant dard",
+                     "palla noppi", "teeth pain", "gum"],
+        "answer": (
+            "Toothache - what helps:\n"
+            "- Rinse with warm salt water (half tsp salt in a glass) "
+            "3-4 times a day.\n"
+            "- Floss gently to remove stuck food. Do not put aspirin "
+            "directly on the gum - it burns.\n"
+            "- Paracetamol 500 mg (adults, 1 tablet after food) helps "
+            "the pain temporarily.\n"
+            "See a dentist/PHC within a few days - decay does not heal "
+            "on its own. Go sooner if the face is swelling or you have "
+            "fever with the pain."
+        ),
+    },
+    {
+        "topic": "ear pain",
+        "keywords": ["ear pain", "earache", "kaan dard", "chevi noppi",
+                     "ear"],
+        "answer": (
+            "Ear pain - what helps:\n"
+            "- A warm (not hot) cloth held over the ear soothes pain.\n"
+            "- Do NOT put oil, leaves or sticks into the ear.\n"
+            "- Paracetamol 500 mg (adults, 1 tablet after food) helps.\n"
+            "- If water got in while bathing, tilt the head and let it "
+            "drain; dry the outer ear only.\n"
+            "See a doctor/PHC if pain lasts more than 2 days, there "
+            "discharge or pus from the ear, hearing reduces, or a child "
+            "with ear pain also has fever - eardrops may be needed."
+        ),
+    },
+    {
+        "topic": "eye problem",
+        "keywords": ["eye", "eyes", "red eye", "kanu", "aankh",
+                     "eye pain", "vision"],
+        "answer": (
+            "Eye problems - what helps:\n"
+            "- Red itchy eye (likely conjunctivitis): wash hands often, "
+            "use a separate towel, do not rub. Clean eyelids with clean "
+            "water. It usually settles in 5-7 days.\n"
+            "- Dust in the eye: blink in clean water; do not rub.\n"
+            "Do NOT use anyone else's eye drops or breast milk in eyes.\n"
+            "Go to the PHC/eye doctor SAME DAY if: eye injury, chemical "
+            "splashed in the eye, sudden vision loss, severe pain, or a "
+            "white spot on the black part of the eye."
+        ),
+    },
+    {
+        "topic": "jaundice",
+        "keywords": ["jaundice", "yellow eyes", "kamla", "paandu",
+                     "yellow skin", "hepatitis"],
+        "answer": (
+            "Jaundice (yellow eyes/skin) - what to do:\n"
+            "- Get a blood test at the PHC - liver tests are often "
+            "free. Jaundice has many causes; do not self-treat.\n"
+            "- Rest well, drink plenty of fluids, eat boiled food, "
+            "avoid oil/fried food and completely avoid alcohol.\"
+            "- Do NOT take random 'liver tablets' or unknown herbs - "
+            "some damage the liver more.\n"
+            "Go to hospital URGENTLY if: drowsiness or confusion, "
+            "vomiting repeatedly, bleeding, swelling of the belly, or "
+            "jaundice in a newborn baby (that is always urgent)."
+        ),
+    },
+    {
+        "topic": "periods",
+        "keywords": ["period", "periods", "menstrual", "monthly",
+                     "menstruation", "painful periods", "cramps"],
+        "answer": (
+            "Period pain - what helps:\n"
+            "- Hot water bag on the lower belly works well.\n"
+            "- Warm drinks, light walking, and rest help.\n"
+            "- Paracetamol 500 mg (1 tablet after food) is safe for "
+            "period pain in adults.\n"
+            "- Track your cycle; some pain is normal.\n"
+            "See a doctor/PHC if: bleeding so heavy you soak a pad "
+            "every 1-2 hours, periods lasting more than 7-8 days, fainting, "
+            "severe sudden one-sided pain, bleeding during pregnancy, or "
+            "periods that stopped for months suddenly."
+        ),
+    },
+    {
+        "topic": "pregnancy",
+        "keywords": ["pregnan", "delivery", "garbini", "expecting",
+                     "morning sickness"],
+        "answer": (
+            "Pregnancy care basics:\n"
+            "- Register at the PHC early - get FREE checkups, iron and "
+            "folic acid tablets, and 2 vaccines (TT).\n"
+            "- Take iron tablets daily, eat extra food, milk, green "
+            "leafy vegetables and fruits.\n"
+            "- 4+ checkups during pregnancy; deliver in a hospital - "
+            "call 108 for free transport.\n"
+            "Go to hospital IMMEDIATELY if: bleeding, severe headache "
+            "with blurred vision, swelling of face and hands, water "
+            "breaks, baby movements reduce, or labour pains start."
+        ),
+    },
+    {
+        "topic": "child fever",
+        "keywords": ["child fever", "baby fever", "kid fever",
+                     "child health", "child sick", "not feeding"],
+        "answer": (
+            "Sick child - when to act fast:\n"
+            "- For fever, syrup/paracetamol dose depends on WEIGHT - "
+            "ask the PHC or pharmacist; never give adult tablets.\n"
+            "- Keep giving fluids/breastmilk; light clothing; sponging "
+            "with lukewarm water.\n"
+            "Go to the PHC or call 108 IMMEDIATELY if the child: is "
+            "under 2 months with any fever, refuses feeds, is very "
+            "drowsy or won't wake, has fits, breathing fast or hard, "
+            "sunken eyes/no tears (dehydration), or fever with rash."
+        ),
+    },
+    {
         "topic": "dog bite",
-        "keywords": ["dog bite", "kukka"],
+        "keywords": ["dog bite", "kukka", "cat bite", "monkey bite"],
         "answer": (
             "Dog (or cat/monkey) bite - act immediately:\n"
             "- Wash the wound under running water with soap for 15 full "
@@ -222,6 +404,41 @@ KB_ENTRIES = [
             "- Note the snake's colour if safe - never try to catch it.\n"
             "- Go to the nearest PHC or hospital with anti-snake venom "
             "immediately."
+        ),
+    },
+    {
+        "topic": "stress",
+        "keywords": ["stress", "tension", "anxiety", "depression",
+                     "sad", "sleep problem", "insomnia", "worry"],
+        "answer": (
+            "Stress, sleep and mental health - what helps:\n"
+            "- Fix sleep time: no screens 1 hour before bed, no tea/"
+            "coffee after evening.\n"
+            "- 20-30 minutes of walking daily and talking to family or "
+            "friends genuinely helps.\n"
+            "- Deep slow breathing: in for 4 counts, out for 6, for a "
+            "few minutes when tense.\n"
+            "- Tele-MANAS free mental health helpline: 14416 (24x7, "
+            "Telugu and other languages).\n"
+            "See a doctor/PHC if low mood or poor sleep lasts over 2 "
+            "weeks, or if there are thoughts of self-harm - call 104 "
+            "or 14416 right away."
+        ),
+    },
+    {
+        "topic": "nutrition",
+        "keywords": ["nutrition", "diet", "weakness", "weak",
+                     "anemia", "weight", "food", "healthiness"],
+        "answer": (
+            "Good nutrition on a budget:\n"
+            "- Every meal: rice/rotta + dal or curd + a vegetable.\n"
+            "- Cheap proteins: eggs, groundnut, dal, milk, soya.\n"
+            "- Weekly: green leafy vegetables and seasonal fruit.\n"
+            "- Weakness/tiredness is often anemia (low blood) - free "
+            "hemoglobin test at the PHC; iron tablets are given free.\n"
+            "See a doctor/PHC if losing weight without trying, swelling "
+            "of feet, or a child is not gaining weight (ask about "
+            "nutrition support at the Anganwadi centre)."
         ),
     },
 ]
