@@ -19,7 +19,7 @@ st.set_page_config(
 
 URGENT_BANNER_HTML = (
     '<div style="background:#b00020;color:#ffffff;padding:14px 18px;'
-    'border:10px;font-weight:bold;font:18px;margin-bottom:8px;">'
+    'border-radius:10px;font-weight:bold;font-size:18px;margin-bottom:8px;">'
     '🚨 This sounds URGENT. Call 108 / 112 NOW.</div>'
 )
 
@@ -92,7 +92,7 @@ def voice_input_box():
             key="mic_btn",
         )
     with col_hint:
-        st.caption("Tap 🎤, microphone, speak, tap ⏹️.")
+        st.caption("Tap 🎤, allow microphone, speak, tap ⏹️.")
     if result and result.get("bytes"):
         raw = result["bytes"]
         sig = hashlib.md5(raw).hexdigest()
@@ -168,7 +168,7 @@ def due_dialog_visit(name, detail):
         'text-align:center;">'
         "📅 " + name + "<br>" + detail + "</div>",
         unsafe_allow_html=True,
- )
+    )
     st.write("")
     if st.button("✔️ OK", type="primary", use_container_width=True):
         st.rerun()
@@ -185,7 +185,7 @@ def saved_popup(name, detail, times):
     st.markdown(
         '<div style="background:#1f6f43;color:#ffffff;padding:18px 22px;'
         'border-radius:12px;font-size:19px;font-weight:bold;'
-       text-align:center;">'
+        'text-align:center;">'
         "💊 " + name + "<br>🕒 " + times + "<br>" + detail + "</div>",
         unsafe_allow_html=True,
     )
@@ -274,7 +274,7 @@ if page == "💬 Health Chat":
                 audio_slot.markdown(audio_html, unsafe_allow_html=True)
 
         st.session_state.chat_history.append(
-            {"role": "assistant",text": full_text,
+            {"role": "assistant", "text": full_text,
              "urgent": urgent, "audio": audio_html}
         )
         st.rerun()
@@ -293,7 +293,7 @@ elif page == "📅 Appointments":
             pname = st.text_input("Patient name *")
             facility = st.selectbox(
                 "Facility",
-                ["TekkaliC", "Srikakulam Area Hospital",
+                ["Tekkali PHC", "Srikakulam Area Hospital",
                  "CHC Santabommali", "Nearest PHC (auto-locate)"],
             )
             need_type = st.selectbox(
@@ -321,7 +321,7 @@ elif page == "📅 Appointments":
                 "time": atime.strftime("%I:%M %p"),
                 "phone": phone,
                 "notes": notes,
- "status": "Requested",
+                "status": "Requested",
                 "created": datetime.now().strftime("%d %b %Y %H:%M"),
             })
             st.success("✅ Request saved! An ASHA worker / PHC will "
@@ -332,7 +332,7 @@ elif page == "📅 Appointments":
     appts = st.session_state.appointments
     if not appts:
         st.info("No appointment requests yet.")
- else:
+    else:
         for idx in range(len(appts) - 1, -1, -1):
             a = appts[idx]
             title = ("🎫 " + a["name"] + " - " + a["purpose"]
@@ -482,7 +482,7 @@ elif page == "📁 Health Records":
             rtype = st.selectbox(
                 "Record type",
                 ["🩺 Visit note", "💊 Medicine given",
-                 "🧪 Lab result", "🌡️ Reading (BP/sugar/weight)",
+ "🧪 Lab result", "🌡️ Reading (BP/sugar/weight)",
                  "💉 Vaccination"],
             )
         with c2:
@@ -507,7 +507,7 @@ elif page == "📁 Health Records":
 
     st.divider()
     st.markdown("### 🗂️ All records")
-    recs = st.session_state.records
+    recs st.session_state.records
     if not recs:
         st.info("No records yet.")
     else:
@@ -586,7 +586,7 @@ elif page == "📍 Find Facilities":
                 "lat": [f["lat"] for f in results] + [lat],
                 "lon": [f["lon"] for f in results] + [lon],
             })
-            st.map(map_df)
+           .map(map_df)
 
             st.markdown("##### 📅 Request an appointment at one of these")
             with st.form("loc_appt", clear_on_submit=True):
@@ -659,7 +659,7 @@ elif page == "🚨 Emergency":
             st.markdown(
                 '<a href="tel:' + num + '"><button style="'
                 'background:#ffffff;color:#b00020;border:2px solid #b00020;'
-                'border-radius:10px;padding:10px 18px;font-size:18px;'
+                'border-radius:10px;padding:10px 18px;font-size18px;'
                 'font-weight:bold;cursor:pointer;">📞 ' + num
                 + "</button></a>",
                 unsafe_allow_html=True,
