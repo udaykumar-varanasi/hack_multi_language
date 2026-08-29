@@ -51,10 +51,17 @@ st.session_state["voice_lang"] = voice_lang
 
 st.info(DISCLAIMER, icon="ℹ️")
 
+# ---- mic component import (done once, at top level) ----
+mic_recorder = None
+try:
+    from streamlit_mic_recorder import mic_recorder
+except Exception as e:
+    print("streamlit_mic_recorder import failed:", e)
+
 if page == "💬 Health Info Chat":
     st.title("Health Information Assistant")
     st.caption(
-        "Type below, or press the record button and just speak - "
+        "Type below, or press the mic button and just speak - "
         "Telugu, Hindi and English supported."
     )
 
@@ -68,58 +75,36 @@ if page == "💬 Health Info Chat":
                 with st.expander("🔊 Listen"):
                     st.markdown(audio, unsafe_allow_html=True)
 
-    # ---- voice input: imports FIRST, separately from the call ----
-    wav_bytes = None
-    recorder_kind = "none"
-    audio_recorder = None
-    st_audiorecorder = None
-
-    try:
-        from audio_recorder_streamlit import audio_recorder
-        recorder_kind = "ar"
-    except Exception as e:
-        print("audio_recorder_streamlit import failed:", e)
-
-    if recorder_kind == "none":
-        try:
-            from streamlit_audiorecorder import st_audiorecorder
-            recorder_kind = "sa"
-        except Exception as e:
-            print("streamlit_audiorecorder import failed:", e)
-
-    if recorder_kind == "ar":
-        try:
-            wav_bytes = audio_recorder(
-                text="Click to record",
-                recording_color="#e74c3c",
-                neutral_color="#6c757d",
-                icon_size="2x",
-                key="voice_recorder",
-                return_bytes="wav",
+    # ---- voice input row: mic button + status ----
+    spoken_text = ""
+    if mic_recorder is not None:
+        col_mic, col_hint = st.columns([1, 4])
+        with col_mic:
+            audio_result = mic_recorder(
+                start_prompt="🎤",
+                stop_prompt="⏹️",
+                just_once=True,
+                use_container_width=True,
+                key="mic_btn",
             )
-        except Exception as e:
-            print("audio_recorder call failed:", e)
-            wav_bytes = None
-    elif recorder_kind == "sa":
-        try:
-            wav_bytes = st_audiorecorder(
-                "Click to record", key="voice_recorder2"
-            )
-        except Exception as e:
-            print("st_audiorecorder call failed:", e)
-            wav_bytes = None
+        with col_hint:
+            st.caption("Tap 🎤, allow microphone, speak, tap ⏹️ to send.")
+
+        if audio_result and audio_result.get("bytes"):
+            raw = audio_result["bytes"]
+            audio_sig = hashlib.md5(raw).hexdigest()
+            if audio_sig != st.session_state.get("last_audio_sig"):
+                st.session_state["last_audio_sig"] = audio_sig
+                with st.spinner("Understanding your speech..."):
+                    # mic_recorder returns webm/opus; convert for recognition
+                    spoken_text = transcribe_any(raw, audio_result.get("format", ""))
+                if spoken_text:
+                    st.toast("Heard you!", icon="✅")
+                else:
+                    st.warning("Could not understand the audio. Try again "
+                               "or type your question.")
     else:
         st.caption("Voice input unavailable - please type your question.")
-
-    spoken_text = ""
-    if wav_bytes:
-        audio_sig = hashlib.md5(wav_bytes).hexdigest()
-        if audio_sig != st.session_state.get("last_audio_sig"):
-            st.session_state["last_audio_sig"] = audio_sig
-            with st.spinner("Understanding your speech..."):
-                spoken_text = transcribe(wav_bytes, st.session_state["voice_lang"])
-            if spoken_text:
-                st.toast("Heard you!", icon="✅")
 
     typed_text = st.chat_input("Type your health question here...")
     user_query = spoken_text or typed_text or ""
