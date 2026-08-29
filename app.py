@@ -17,8 +17,8 @@ st.set_page_config(
 )
 
 URGENT_BANNER_HTML = (
-    '<div style="background:#b00020;color:#fff;padding:12px 16px;'
-    'border-radius:10px;font-weight:bold;margin-bottom:8px;">'
+    '<div style="background:#b00020;color:#ffffff;padding:14px 18px;'
+    'border-radius:10px;font-weight:bold;font-size:18px;margin-bottom:8px;">'
     '🚨 This sounds URGENT. Call 108 / 112 NOW.</div>'
 )
 
@@ -57,7 +57,7 @@ with st.sidebar:
     st.divider()
     st.subheader("🚨 Emergency numbers")
     for label, num in EMERGENCY_CONTACTS.items():
-        st.markdown(f"**{label}:** `{num}`")
+        st.markdown("**" + label + ":** `" + num + "`")
     st.divider()
     st.caption("Non-diagnostic platform. Not a substitute for a doctor.")
 
@@ -485,18 +485,52 @@ elif page == "📍 Find Facilities":
                         st.error("Enter the patient name.")
 
 # ============================================================
-# PAGE 6: EMERGENCY
+# PAGE 6: EMERGENCY  (high-contrast redesign)
 # ============================================================
 elif page == "🚨 Emergency":
     st.title("🚨 Emergency Help")
-    st.error("In a life-threatening situation, call immediately:",
-             icon="🚨")
+
+    st.markdown(
+        '<div style="background:#7a0013;color:#ffffff;padding:16px 20px;'
+        'border-radius:12px;font-size:20px;font-weight:bold;'
+        'text-align:center;">'
+        '🚨 In a life-threatening situation, call immediately</div>',
+        unsafe_allow_html=True,
+    )
+    st.write("")
+
+    # Big white number cards - readable in BOTH light and dark theme
+    ICONS = {
+        "Ambulance": "🚑",
+        "National Emergency": "🆘",
+        "Health Helpline": "📞",
+    }
     for label, num in EMERGENCY_CONTACTS.items():
-        card = ('<div style="background:#fff0f0;border:2px solid #b00020;'
-                'border-radius:10px;padding:10px 16px;margin:6px 0;">'
-                '<span style="font-size:20px;font-weight:bold;">'
-                + label + ": " + num + "</span></div>")
+        icon = ICONS.get(label, "📞")
+        card = (
+            '<div style="background:#b00020;color:#ffffff;'
+            'border-radius:12px;padding:18px 22px;margin:10px 0;'
+            'box-shadow:0 2px 8px rgba(0,0,0,0.4);">'
+            '<span style="font-size:26px;font-weight:800;'
+            'letter-spacing:0.5px;">'
+            + icon + " " + label + " &nbsp;→&nbsp; " + num
+            + "</span></div>"
+        )
         st.markdown(card, unsafe_allow_html=True)
+
+    st.write("")
+    st.markdown("##### Tap to call from a mobile phone")
+    bcols = st.columns(len(EMERGENCY_CONTACTS))
+    for col, (label, num) in zip(bcols, EMERGENCY_CONTACTS.items()):
+        with col:
+            st.markdown(
+                '<a href="tel:' + num + '"><button style="'
+                'background:#ffffff;color:#b00020;border:2px solid #b00020;'
+                'border-radius:10px;padding:10px 18px;font-size:18px;'
+                'font-weight:bold;cursor:pointer;">📞 ' + num
+                + "</button></a>",
+                unsafe_allow_html=True,
+            )
 
     st.divider()
     st.markdown("### 🗣️ Tell us what happened (voice or text)")
