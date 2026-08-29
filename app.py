@@ -29,6 +29,7 @@ st.session_state.setdefault("reminders", [])
 st.session_state.setdefault("records", [])
 st.session_state.setdefault("escalations", [])
 
+# ---------------- sidebar ----------------
 with st.sidebar:
     st.title("⚕️ ArogyaMitra")
     st.caption("Rural Health Assistant - AP")
@@ -48,7 +49,7 @@ with st.sidebar:
     st.divider()
     st.subheader("🌐 Voice language")
     voice_lang = st.selectbox(
-        "For speech input / output",
+        "For speech input and output",
         list(SUPPORTED_LANGS.keys()),
         format_func=lambda k: SUPPORTED_LANGS[k],
         label_visibility="collapsed",
@@ -62,7 +63,7 @@ with st.sidebar:
 
 st.session_state["voice_lang"] = voice_lang
 
-# ---------------- mic component import ----------------
+# ---------------- mic component ----------------
 mic_recorder = None
 try:
     from streamlit_mic_recorder import mic_recorder
@@ -71,7 +72,7 @@ except Exception as e:
 
 
 def voice_input_box():
-    """Render mic button; return recognized text ('' if none)."""
+    """Render mic button; return recognized text (empty if none)."""
     if mic_recorder is None:
         st.caption("Voice input unavailable - please type.")
         return ""
@@ -98,6 +99,14 @@ def voice_input_box():
                 return text
             st.warning("Could not understand. Try again or type.")
     return ""
+
+
+def esc_row(when, question, reason):
+    st.session_state.escalations.append({
+        "when": when,
+        "question": question,
+        "reason": reason,
+    })
 
 
 # ============================================================
@@ -144,12 +153,14 @@ if page == "💬 Health Chat":
             urgent = bool(getattr(stream_response, "last_urgent", False))
             full_text = getattr(stream_response, "last_full_text", "") or shown
             if urgent:
-                urgent_banner.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
-                st.session_state.escalations.append({
-                    "when": datetime.now().strftime("%d %b %Y %H:%M"),
-                    "question": latest,
-                    "reason": "Urgent symptoms detected - advised 108/112",
-                })
+                urgent_banner.markdown(
+                    URGENT_BANNER_HTML, unsafe_allow_html=True
+                )
+                esc_row(
+                    datetime.now().strftime("%d %b %Y %H:%M"),
+                    latest,
+                    "Urgent symptoms detected - advised 108/112",
+                )
             audio_html = speak_html(full_text, voice_lang)
             if audio_html:
                 audio_slot.markdown(audio_html, unsafe_allow_html=True)
@@ -166,7 +177,7 @@ if page == "💬 Health Chat":
 elif page == "📅 Appointments":
     st.title("📅 Appointment / Request Management")
     st.caption("Request a visit at a facility. PHC staff or ASHA workers "
-               "can confirm. All data stays in this session.")
+               "can confirm it. All data stays in this session.")
 
     with st.form("appt_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
@@ -210,26 +221,27 @@ elif page == "📅 Appointments":
 
     st.divider()
     st.markdown("### 📋 My appointment requests")
-    if not st.session_state.appointments:
+    appts = st.session_state.appointments
+    if not appts:
         st.info("No appointment requests yet.")
     else:
-        for i, a in enumerate(reversed(st.session_state.appointments)):
-            idx = len(st.session_state.appointments) - 1 - i
-            with st.expander(
-                f"🎫 {a['name']} - {a['purpose']} - {a['date']} "
-                f"({a['status']})"
-            ):
-                st.markdown(
-                    f"**Facility:** {a['facility']}  \n"
-                    f"**When:** {a['date']} at {a['time']}  \n"
-                    f"**Contact:** {a['phone'] or '-'}  \n"
-                    f"**Notes:** {a['notes'] or '-'}"
+        for idx in range(len(appts) - 1, -1, -1):
+            a = appts[idx]
+            title = ("🎫 " + a["name"] + " - " + a["purpose"]
+                     + " - " + a["date"] + " (" + a["status"] + ")")
+            with st.expander(title):
+                lines = (
+                    "**Facility:** " + a["facility"] + "  \n"
+                    "**When:** " + a["date"] + " at " + a["time"] + "  \n"
+                    "**Contact:** " + (a["phone"] or "-") + "  \n"
+                    "**Notes:** " + (a["notes"] or "-")
                 )
+                st.markdown(lines)
                 c1, c2 = st.columns(2)
-                if c1.button("✔️ Mark Confirmed key=f"conf{i}"):
- st.session_state.appointments[idx]["status"] = "Confirmed"
+                if c1.button("✔️ Mark Confirmed", key="conf" + str(idx)):
+                    st.session_state.appointments[idx]["status"] = "Confirmed"
                     st.rerun()
-                if c2.button("❌ Cancel", key=f"canc{i}"):
+                if c2.button("❌ Cancel", key="canc" + str(idx)):
                     st.session_state.appointments[idx]["status"] = "Cancelled"
                     st.rerun()
 
@@ -237,7 +249,7 @@ elif page == "📅 Appointments":
 # PAGE 3: REMINDERS
 # ============================================================
 elif page == "⏰ Reminders":
-    st.title("⏰ Medicine & Appointment Reminders")
+    st.title("⏰ Medicine and Appointment Reminders")
     st.caption("Set reminders for medicines, checkups and vaccination "
                "doses. Reminders show while the app is open.")
 
@@ -262,7 +274,7 @@ elif page == "⏰ Reminders":
                     st.session_state.reminders.append({
                         "type": "💊 Medicine",
                         "name": mname.strip(),
-                        "detail": f"{mdose} - {mfreq}",
+                        "detail": mdose + " - " + mfreq,
                         "times": mtimes,
                         "days": int(mdays),
                         "start": m_start.strftime("%d %b %Y"),
@@ -286,8 +298,8 @@ elif page == "⏰ Reminders":
                 st.session_state.reminders.append({
                     "type": "📅 Visit",
                     "name": vname,
-                    "detail": vdate.strftime("%d %b %Y") + " at " +
-                              vtime.strftime("%I:%M %p"),
+                    "detail": (vdate.strftime("%d %b %Y") + " at "
+                               + vtime.strftime("%I:%M %p")),
                     "times": vtime.strftime("%H:%M"),
                     "days": 1,
                     "start": vdate.strftime("%d %b %Y"),
@@ -297,26 +309,29 @@ elif page == "⏰ Reminders":
 
     st.divider()
     st.markdown("### 🔔 Active reminders")
-    if not st.session_state.reminders:
+    rems = st.session_state.reminders
+    if not rems:
         st.info("No reminders yet.")
     else:
-        for i, r in enumerate(st.session_state.reminders):
+        for i in range(len(rems)):
+            r = rems[i]
             if r["done"]:
                 continue
             c1, c2 = st.columns([5, 1])
             with c1:
-                st.markdown(
-                    f"{r['type']} **{r['name']}**  \n"
-                    f"🕒 {r['times']} | 📆 from {r['start']} | "
-                    f"{r['detail']} ({r['days']} day(s))"
-                )
+                lines = (r["type"] + " **" + r["name"] + "**  \n"
+                         "🕒 " + r["times"] + " | 📆 from " + r["start"]
+                         + " | " + r["detail"]
+                         + " (" + str(r["days"]) + " day(s))")
+                st.markdown(lines)
             with c2:
-                if st.button("✔️", key=f"rdone{i}", help="Mark taken/done"):
+                if st.button("✔️", key="rdone" + str(i),
+                             help="Mark taken or done"):
                     st.session_state.reminders[i]["done"] = True
                     st.rerun()
-        done_list = [r for r in st.session_state.reminders if r["done"]]
-        if done_list:
-            st.caption(f"✅ {len(done_list)} reminder(s) completed.")
+        done_count = len([r for r in rems if r["done"]])
+        if done_count:
+            st.caption("✅ " + str(done_count) + " reminder(s) completed.")
 
 # ============================================================
 # PAGE 4: HEALTH RECORDS
@@ -324,7 +339,7 @@ elif page == "⏰ Reminders":
 elif page == "📁 Health Records":
     st.title("📁 Patient Health Record Organization")
     st.caption("Keep visits, readings and prescriptions organised in one "
-               "place. Session-only: closes when the app closes.")
+               "place. Session-only: data closes when the app closes.")
 
     with st.form("rec_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
@@ -358,7 +373,8 @@ elif page == "📁 Health Records":
 
     st.divider()
     st.markdown("### 🗂️ All records")
-    if not st.session_state.records:
+    recs = st.session_state.records
+    if not recs:
         st.info("No records yet.")
     else:
         filter_name = st.text_input("🔎 Filter by patient name")
@@ -370,7 +386,7 @@ elif page == "📁 Health Records":
                 "Doctor/PHC": r["doctor"],
                 "Details": r["details"],
             }
-            for r in st.session_state.records
+            for r in recs
             if filter_name.lower() in r["name"].lower()
         ]
         if rows:
@@ -379,15 +395,18 @@ elif page == "📁 Health Records":
             st.warning("No records match that name.")
 
         st.markdown("### ⬇️ Download all records (CSV)")
+        all_rows = [
+            {
+                "Patient": r["name"], "Type": r["type"],
+                "Date": r["date"], "Doctor/PHC": r["doctor"],
+                "Details": r["details"],
+            }
+            for r in recs
+        ]
         st.download_button(
             "📥 Download CSV",
-            data=pd.DataFrame(
-                [{
-                    "Patient": r["name"], "Type": r["type"],
-                    "Date": r["date"], "Doctor/PHC": r["doctor"],
-                    "Details": r["details"],
-                } for r in st.session_state.records]
-            ).to_csv(index=False).encode("utf-8"),
+            data=pd.DataFrame(all_rows).to_csv(index=False)
+            .encode("utf-8"),
             file_name="health_records.csv",
             mime="text/csv",
         )
@@ -437,7 +456,8 @@ elif page == "📍 Find Facilities":
 
             st.markdown("##### 📅 Request an appointment at one of these")
             with st.form("loc_appt", clear_on_submit=True):
-                fc = st.selectbox("Facility", [f["name"] for f in results])
+                fc = st.selectbox("Facility",
+                                  [f["name"] for f in results])
                 la1, la2 = st.columns(2)
                 with la1:
                     lp = st.text_input("Patient name *")
@@ -448,17 +468,19 @@ elif page == "📍 Find Facilities":
                 if st.form_submit_button("📩 Submit request"):
                     if lp.strip():
                         st.session_state.appointments.append({
-                            "name": lp.strip(), "facility": fc,
+                            "name": lp.strip(),
+                            "facility": fc,
                             "purpose": need,
                             "date": ld.strftime("%d %b %Y"),
-                            "time": "10:00 AM", "phone": "",
+                            "time": "10:00 AM",
+                            "phone": "",
                             "notes": "Requested from locator",
                             "status": "Requested",
                             "created": datetime.now().strftime(
                                 "%d %b %Y %H:%M"),
                         })
-                        st.success("✅ Request saved! See the Appointments "
-                                   "page.")
+                        st.success("✅ Request saved! See the "
+                                   "Appointments page.")
                     else:
                         st.error("Enter the patient name.")
 
@@ -470,13 +492,11 @@ elif page == "🚨 Emergency":
     st.error("In a life-threatening situation, call immediately:",
              icon="🚨")
     for label, num in EMERGENCY_CONTACTS.items():
-        st.markdown(
-            '<div style="background:#fff0f0;border:2px solid #b00020;'
-            'border-radius:10px;padding:10px 16px;margin:6px 0;">'
-            '<span style="font-size:20px;font-weight:bold;">'
-            + label + ": " + num + "</span></div>",
-            unsafe_allow_html=True,
-        )
+        card = ('<div style="background:#fff0f0;border:2px solid #b00020;'
+                'border-radius:10px;padding:10px 16px;margin:6px 0;">'
+                '<span style="font-size:20px;font-weight:bold;">'
+                + label + ": " + num + "</span></div>")
+        st.markdown(card, unsafe_allow_html=True)
 
     st.divider()
     st.markdown("### 🗣️ Tell us what happened (voice or text)")
@@ -484,19 +504,19 @@ elif page == "🚨 Emergency":
     manual = st.text_area("Or type the situation")
     situation = spoken or manual
 
-    if st.button("🚑 Analyze & log emergency", type="primary"):
+    if st.button("🚑 Analyze and log emergency", type="primary"):
         if situation.strip():
             urgent, advice = emergency_block(situation)
             if urgent:
                 st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
             st.markdown(advice)
-            st.session_state.escalations.append({
-                "when": datetime.now().strftime("%d %b %Y %H:%M"),
-                "question": situation.strip(),
-                "reason": "Emergency page - " +
-                          ("URGENT flags matched" if urgent else
-                           "non-urgent guidance given"),
-            })
+            esc_row(
+                datetime.now().strftime("%d %b %Y %H:%M"),
+                situation.strip(),
+                "Emergency page - "
+                + ("URGENT flags matched" if urgent
+                   else "non-urgent guidance given"),
+            )
             audio_html = speak_html(advice, voice_lang)
             if audio_html:
                 st.markdown(audio_html, unsafe_allow_html=True)
@@ -531,12 +551,11 @@ else:
         "- 🚨 Emergency contact functionality with escalation log.\n"
         "- 📁 Patient health-record organization (with CSV download).\n"
         "- 🎙️ Voice-based interaction for users with limited literacy.\n"
-        "- 📈 Automatic escalation to healthcare professionals when "
-        "urgent symptoms are detected.\n\n"
+        "- 📈 Automatic escalation when urgent symptoms are detected.\n\n"
         "**What it does NOT do**\n"
         "- Does not diagnose diseases or replace doctors.\n"
         "- Does not prescribe prescription medicines.\n\n"
         "**Privacy:** all data stays in this browser session only."
     )
     st.divider()
-    st.caption(f"Deployed: {datetime.now().strftime('%d %b %Y')}")
+    st.caption("Deployed: " + datetime.now().strftime("%d %b %Y"))
