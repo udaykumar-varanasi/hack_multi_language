@@ -29,7 +29,7 @@ st.session_state.setdefault("appointments", [])
 st.session_state.setdefault("reminders", [])
 st.session_state.setdefault("records", [])
 st.session_state.setdefault("escalations", [])
-st.session_state.setdefault("alerted", [])   # keys of already-shown popups
+st.session_state.setdefault("alerted", [])
 
 # ---------------- sidebar ----------------
 with st.sidebar:
@@ -97,7 +97,7 @@ def voice_input_box():
             with st.spinner("Understanding your speech..."):
                 text = transcribe_any(raw, result.get("format", ""))
             if text:
-                st.toast("Heard you!", icon="")
+                st.toast("Heard you!", icon="✅")
                 return text
             st.warning("Could not understand. Try again or type.")
     return ""
@@ -376,7 +376,7 @@ elif page == "⏰ Reminders":
                                     min_value=date.today())
             if st.form_submit_button("➕ Add medicine reminder"):
                 if mname.strip():
-                   .session_state.reminders.append({
+                    st.session_state.reminders.append({
                         "type": "💊 Medicine",
                         "name": mname.strip(),
                         "detail": mdose + " - " + mfreq,
@@ -386,7 +386,7 @@ elif page == "⏰ Reminders":
                         "done": False,
                     })
                     st.success("✅ Reminder added!")
-                    saved_popup(mname.strip(), md + " - " + mfreq,
+                    saved_popup(mname.strip(), mdose + " - " + mfreq,
                                 mtimes)
                 else:
                     st.error("Enter the medicine name.")
@@ -538,7 +538,7 @@ elif page == "📁 Health Records":
             data=pd.DataFrame(all_rows).to_csv(index=False)
             .encode("utf-8"),
             file_name="health_records.csv",
-            mime="/csv",
+            mime="text/csv",
         )
 
 # ============================================================
