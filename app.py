@@ -1,7 +1,7 @@
 import hashlib
 
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, date, time as dtime
 from engine import stream_response, emergency_block
 from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
@@ -22,12 +22,27 @@ URGENT_BANNER_HTML = (
     '🚨 This sounds URGENT. Call 108 / 112 NOW.</div>'
 )
 
+# ---------------- session state defaults ----------------
+st.session_state.setdefault("chat_history", [])
+st.session_state.setdefault("appointments", [])   # appointment requests
+st.session_state.setdefault("reminders", [])      # medicine reminders
+st.session_state.setdefault("records", [])        # health records
+st.session_state.setdefault("escalations", [])    # escalation notes
+
 with st.sidebar:
     st.title("⚕️ ArogyaMitra")
     st.caption("Rural Health Assistant - AP")
     page = st.radio(
         "Go to",
-        ["💬 Health Info Chat", "📍 Find Facilities", "ℹ️ About"],
+        [
+            "💬 Health Chat",
+            "📅 Appointments",
+            "⏰ Reminders",
+            "📁 Health Records",
+            "📍 Find Facilities",
+            "🚨 Emergency",
+            "ℹ️ About",
+        ],
         label_visibility="collapsed",
     )
     st.divider()
@@ -45,79 +60,84 @@ with st.sidebar:
     st.divider()
     st.caption("Non-diagnostic platform. Not a substitute for a doctor.")
 
-st.session_state.setdefault("chat_history", [])
-st.session_state.setdefault("voice_lang", voice_lang)
 st.session_state["voice_lang"] = voice_lang
 
-st.info(DISCLAIMER, icon="ℹ️")
-
-# ---- mic component import (done once, at top level) ----
+# ---------------- mic component import ----------------
 mic_recorder = None
 try:
     from streamlit_mic_recorder import mic_recorder
 except Exception as e:
     print("streamlit_mic_recorder import failed:", e)
 
-if page == "💬 Health Info Chat":
-    st.title("Health Information Assistant")
-    st.caption(
-        "Type below, or press the mic button and just speak - "
-        "Telugu, Hindi and English supported."
-    )
 
-    for msg in st.session_state.chat_history:
+def voice_input_box():
+    """Render mic button; return recognized text ('' if none)."""
+    if mic_recorder is None:
+        st.caption("Voice input unavailable - please type.")
+        return ""
+    col_mic, col_hint = st.columns([1, 4])
+    with col_mic:
+        result = mic_recorder(
+            start_prompt="🎤",
+            stop_prompt="⏹️",
+            just_once=True,
+            use_container_width=True,
+            key=f"mic_{st.session_state.get('mic_counter', 0)}",
+        )
+    with col_hint:
+        st.caption("Tap 🎤, allow microphone, speak, tap ⏹️.")
+    if result and result.get("bytes"):
+        raw = result["bytes"]
+        sig = hashlib.md5(raw).hexdigest()
+        if sig != st.session_state.get("last_audio_sig"):
+            st.session_state["last_audio_sig"] = sig
+            with st.spinner("Understanding your speech..."):
+                text = transcribe_any(raw, result.get("format", ""))
+            if text:
+                st.toast("Heard you!", icon="✅")
+                return text
+            st.warning("Could not understand. Try again or type.")
+    return ""
+
+
+# ============================================================
+# PAGE 1: HEALTH CHAT
+# ============================================================
+if page == "💬 Health Chat":
+    st.title("Health Information Assistant")
+    st.caption("Multilingual chat with voice - Telugu, Hindi, English.")
+    st.info(DISCLAIMER, icon="ℹ️")
+
+    for in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             if msg.get("urgent") and msg["role"] == "assistant":
                 st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
+                if msg["role"] == "assistant":
+                    # auto-log escalation when urgent detected
+                    st.session_state.escalations.append({
+                        "when": datetime.now().strftime("%d %b %Y %H:%M"),
+                        "question": st.session_state.chat_history[
+                            st.session_state.chat_history.index(msg) - 1
+                        ]["text"] if st.session_state.chat_history.index(msg) > 0 else "-",
+                        "reason": "Urgent symptoms detected",
+                    })
             st.markdown(msg["text"])
             audio = msg.get("audio")
             if audio:
                 with st.expander("🔊 Listen"):
                     st.markdown(audio, unsafe_allow_html=True)
 
-    # ---- voice input row: mic button + status ----
-    spoken_text = ""
-    if mic_recorder is not None:
-        col_mic, col_hint = st.columns([1, 4])
-        with col_mic:
-            audio_result = mic_recorder(
-                start_prompt="🎤",
-                stop_prompt="⏹️",
-                just_once=True,
-                use_container_width=True,
-                key="mic_btn",
-            )
-        with col_hint:
-            st.caption("Tap 🎤, allow microphone, speak, tap ⏹️ to send.")
+    spoken = voice_input_box()
+    typed = st.chat_input("Type your health question here...")
+    user_query = spoken or typed or ""
 
-        if audio_result and audio_result.get("bytes"):
-            raw = audio_result["bytes"]
-            audio_sig = hashlib.md5(raw).hexdigest()
-            if audio_sig != st.session_state.get("last_audio_sig"):
-                st.session_state["last_audio_sig"] = audio_sig
-                with st.spinner("Understanding your speech..."):
-                    spoken_text = transcribe_any(
-                        raw, audio_result.get("format", "")
-                    )
-                if spoken_text:
-                    st.toast("Heard you!", icon="✅")
-                else:
-                    st.warning("Could not understand the audio. Try again "
-                               "or type your question.")
-    else:
-        st.caption("Voice input unavailable - please type your question.")
-
-    typed_text = st.chat_input("Type your health question here...")
-    user_query = spoken_text or typed_text or ""
-
-    needs_reply = False
     if user_query:
-        st.session_state.chat_history.append({"role": "user", "text": user_query})
+        st.session_state.chat_history.append(
+            {"role": "user", "text": user_query}
+        )
         with st.chat_message("user"):
             st.markdown(user_query)
-        needs_reply = True
 
-    if needs_reply:
         latest = st.session_state.chat_history[-1]["text"]
         history_so_far = st.session_state.chat_history[:-1]
 
@@ -125,29 +145,268 @@ if page == "💬 Health Info Chat":
             urgent_banner = st.empty()
             placeholder = st.empty()
             audio_slot = st.empty()
-
             shown = ""
             for chunk in stream_response(history_so_far, latest):
                 shown += chunk
                 placeholder.markdown(shown + " |")
             placeholder.markdown(shown)
-
             urgent = bool(getattr(stream_response, "last_urgent", False))
             full_text = getattr(stream_response, "last_full_text", "") or shown
-
             if urgent:
                 urgent_banner.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
-
-            audio_html = speak_html(full_text, st.session_state["voice_lang"])
+                st.session_state.escalations.append({
+                    "when": datetime.now().strftime("%d %b %Y %H:%M"),
+                    "question": latest,
+                    "reason": "Urgent symptoms detected - advised 108/112",
+                })
+            audio_html = speak_html(full_text, voice_lang)
             if audio_html:
                 audio_slot.markdown(audio_html, unsafe_allow_html=True)
 
         st.session_state.chat_history.append(
-            {"role": "assistant", "text": full_text, "urgent": urgent,
-             "audio": audio_html}
+            {"role": "assistant", "text": full_text,
+             "urgent": urgent, "audio": audio_html}
         )
         st.rerun()
 
+# ============================================================
+# PAGE 2: APPOINTMENTS
+# ============================================================
+elif page == "📅 Appointments":
+    st.title("📅 Appointment / Request Management")
+    st.caption("Request a visit at a facility. PHC staff or ASHA workers "
+               "can confirm. All data stays in this session.")
+
+    with st.form("appt_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            pname = st.text_input("Patient name *")
+            facility = st.selectbox(
+                "Facility",
+                ["Tekkali PHC", "Srikakulam Area Hospital",
+                 "CHC Santabommali", "Nearest PHC (auto-locate)"],
+            )
+            need_type = st.selectbox(
+                "Purpose",
+                ["General checkup", "Fever", "BP / Sugar check",
+                 "Pregnancy checkup (ANC)", "Child vaccination",
+                 "Lab test", "Wound / injury", "Other"],
+            )
+        with c2:
+            adate = st.date_input("Preferred date", min_value=date.today())
+            atime = st.time_input("Preferred time", value=dtime(10, 0))
+            phone = st.text_input("Contact number (optional)")
+        notes = st.text_area("Notes for the doctor (symptoms, etc.)")
+        submit = st.form_submit_button("📩 Submit request", type="primary")
+
+    if submit:
+        if not pname.strip():
+            st.error("Please enter the patient name.")
+        else:
+            st.session_state.appointments.append({
+                "name": pname.strip(),
+                "facility": facility,
+                "purpose": need_type,
+                "date": adate.strftime("%d %b %Y"),
+                "time": atime.strftime("%I:%M %p"),
+                "phone": phone,
+                "notes": notes,
+                "status": "Requested",
+                "created": datetime.now().strftime("%d %b %Y %H:%M"),
+            })
+            st.success("✅ Request saved! An ASHA worker / PHC will confirm. "
+                       "You can view it below.")
+
+    st.divider()
+    st.markdown("### 📋 My appointment requests")
+    if not st.session_state.appointments:
+        st.info("No appointment requests yet.")
+    else:
+        for i, a in enumerate(reversed(st.session_state.appointments)):
+            idx = len(st.session_state.appointments) - 1 - i
+            with st.expander(
+                f"🎫 {a['name']} - {a['purpose']} - {a['date']} "
+                f"({a['status']})"
+            ):
+                st.markdown(
+                    f"**Facility:** {a['facility']}  \n"
+                    f"**When:** {a['date']} at {a['time']}  \n"
+                    f"**Contact:** {a['phone'] or '-'}  \n"
+                    f"**Notes:** {a['notes'] or '-'}"
+                )
+                c1, c2 = st.columns(2)
+                if c1.button("✔️ Mark Confirmed", key=f"conf{i}"):
+                    st.session_state.appointments[idx]["status"] = "Confirmed"
+                    st.rerun()
+                if c2.button("❌ Cancel", key=f"canc{i}"):
+                    st.session_state.appointments[idx]["status"] = "Cancelled"
+                    st.rerun()
+
+# ============================================================
+# PAGE 3: REMINDERS
+# ============================================================
+elif page == "⏰ Reminders":
+    st.title("⏰ Medicine & Appointment Reminders")
+    st.caption("Set reminders for medicines, checkups and vaccination "
+               "doses. Reminders show while the app is open.")
+
+    tab1, tab2 = st.tabs(["💊 Medicine reminder", "📅 Visit reminder"])
+
+    with tab1:
+        with st.form("med_form", clear_on_submit=True):
+            mname = st.text_input("Medicine name *")
+            mdose = st.text_input("Dose (e.g. 1 tablet)",
+                                  value="1 tablet")
+            mfreq = st.selectbox(
+                "How often?",
+                ["Once a day", "Twice a day", "Three times a day",
+                 "Weekly"],
+            )
+            mtimes = st.text_input(
+                "Time(s) (24h, comma separated)",
+                value="08:00, 20:00",
+            )
+            mdays = st.number_input("For how many days?", 1, 365, 7)
+            m_start = st.date_input("Starting from", key="msd",
+                                    min_value=date.today())
+            if st.form_submit_button("➕ Add medicine reminder"):
+                if mname.strip():
+                    st.session_state.reminders.append({
+                        "type": "💊 Medicine",
+                        "name": mname.strip(),
+                        "detail": f"{mdose} - {mfreq}",
+                        "times": mtimes,
+                        "days": int(mdays),
+                        "start": m_start.strftime("%d %b %Y"),
+                        "done": False,
+                    })
+                    st.success("✅ Reminder added!")
+                else:
+                    st.error("Enter the medicine name.")
+
+    with tab2:
+        with st.form("visit_form", clear_on_submit=True):
+            vname = st.selectbox(
+                "Visit type",
+                ["PHC checkup", "Pregnancy (ANC) checkup",
+                 "Child vaccination", "Lab test", "Follow-up visit"],
+            )
+            vdate = st.date_input("Visit date", key="vdt",
+                                  min_value=date.today())
+            vtime = st.time_input("Visit time", value=dtime(10, 0))
+            if st.form_submit_button("➕ Add visit reminder"):
+                st.session_state.reminders.append({
+                    "type": "📅 Visit",
+                    "name": vname,
+                    "detail": vdate.strftime("%d %b %Y") + " at " +
+                              vtime.strftime("%I:%M %p"),
+                    "times": vtime.strftime("%H:%M"),
+                    "days": 1,
+                    "start": vdate.strftime("%d %b %Y"),
+                    "done": False,
+                })
+                st.success("✅ Visit reminder added!")
+
+    st.divider()
+    st.markdown("### 🔔 Active reminders")
+    if not st.session_state.reminders:
+        st.info("No reminders yet.")
+    else:
+        for i, r in enumerate(st.session_state.reminders):
+            if r["done"]:
+                continue
+            c1, c2 = st.columns([5, 1])
+            with c1:
+                st.markdown(
+                    f"{r['type']} **{r['name']}**  \n"
+                    f"🕒 {r['times']} | 📆 from {r['start']} | "
+                    f"{r['detail']} ({r['days']} day(s))"
+                )
+            with c2:
+                if st.button("✔️", key=f"rdone{i}", help="Mark taken/done"):
+                    st.session_state.reminders[i]["done"] = True
+                    st.rerun()
+        done_list = [r for r in st.session_state.reminders if r["done"]]
+        if done_list:
+            st.caption(f"✅ {len(done_list)} reminder(s) completed.")
+
+# ============================================================
+# PAGE 4: HEALTH RECORDS
+# ============================================================
+elif page == "📁 Health Records":
+    st.title("📁 Patient Health Record Organization")
+    st.caption("Keep visits, readings and prescriptions organised in one "
+               "place. Session-only: closes when the app closes.")
+
+    with st.form("rec_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            rname = st.text_input("Patient name *")
+            rtype = st.selectbox(
+                "Record type",
+                ["🩺 Visit note", "💊 Medicine given",
+                 "🧪 Lab result", "🌡️ Reading (BP/sugar/weight)",
+                 "💉 Vaccination"],
+            )
+        with c2:
+            rdate = st.date_input("Date", key="rdate",
+                                  max_value=date.today())
+            rdoctor = st.text_input("Doctor / PHC (optional)")
+        rvalue = st.text_area(
+            "Details * (e.g. BP 140/90; sugar 180; fever 2 days)"
+        )
+        if st.form_submit_button("💾 Save record"):
+            if rname.strip() and rvalue.strip():
+                st.session_state.records.append({
+                    "name": rname.strip(),
+                    "type": rtype,
+                    "date": rdate.strftime("%d %b %Y"),
+                    "doctor": rdoctor or "-",
+                    "details": rvalue.strip(),
+                })
+                st.success("✅ Record saved!")
+            else:
+                st.error("Patient name and details are required.")
+
+    st.divider()
+    st.markdown("### 🗂️ All records")
+    if not st.session_state.records:
+        st.info("No records yet.")
+    else:
+        filter_name = st.text_input("🔎 Filter by patient name")
+        rows = [
+            {
+                "Patient": r["name"],
+                "Type": r["type"],
+                "Date": r["date"],
+                "Doctor/PHC": r["doctor"],
+                "Details": r["details"],
+            }
+            for r in st.session_state.records
+            if filter_name.lower() in r["name"].lower()
+        ]
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        else:
+            st.warning("No records match that name.")
+
+        st.markdown("### ⬇️ Download all records (CSV)")
+        st.download_button(
+            "📥 Download CSV",
+            data=pd.DataFrame(
+                [{
+                    "Patient": r["name"], "Type": r["type"],
+                    "Date": r["date"], "Doctor/PHC": r["doctor"],
+                    "Details": r["details"],
+                } for r in st.session_state.records]
+            ).to_csv(index=False).encode("utf-8"),
+            file_name="health_records.csv",
+            mime="text/csv",
+        )
+
+# ============================================================
+# PAGE 5: FACILITY LOCATOR
+# ============================================================
 elif page == "📍 Find Facilities":
     st.title("Find Health Facilities Near You")
     st.caption("Demo database covering the Tekkali area, Srikakulam district.")
@@ -172,15 +431,13 @@ elif page == "📍 Find Facilities":
             st.warning("No facilities found. Try widening the distance "
                        "or choosing 'Any'.")
         else:
-            rows = []
-            for f in results:
-                rows.append({
-                    "Facility": f["name"],
-                    "Type": f["type"],
-                    "Distance (km)": round(f["distance_km"], 1),
-                    "Services": f["services"],
-                    "Phone": f["phone"],
-                })
+            rows = [{
+                "Facility": f["name"],
+                "Type": f["type"],
+                "Distance (km)": round(f["distance_km"], 1),
+                "Services": f["services"],
+                "Phone": f["phone"],
+            } for f in results]
             st.dataframe(pd.DataFrame(rows), use_container_width=True)
             st.markdown("##### Map")
             map_df = pd.DataFrame({
@@ -189,28 +446,109 @@ elif page == "📍 Find Facilities":
             })
             st.map(map_df)
 
-    st.divider()
-    st.markdown("##### Quick emergency dialing")
-    for label, num in EMERGENCY_CONTACTS.items():
-        st.markdown(f"- **{label}:** {num}")
+            st.markdown("##### 📅 Request an appointment at one of these")
+            with st.form("loc_appt", clear_on_submit=True):
+                fc = st.selectbox(
+                    "Facility", [f["name"] for f in results]
+                )
+                la1, la2 = st.columns(2)
+                with la1:
+                    lp = st.text_input("Patient name *")
+                with la2:
+                    ld = st.date_input("Preferred date",
+                                       min_value=date.today(),
+                                       key="ldappt")
+                if st.form_submit_button("📩 Submit request"):
+                    if lp.strip():
+                        st.session_state.appointments.append({
+                            "name": lp.strip(), "facility": fc,
+                            "purpose": need, "date": ld.strftime("%d %b %Y"),
+                            "time": "10:00 AM", "phone": "",
+                            "notes": "Requested from locator",
+                            "status": "Requested",
+                            "created": datetime.now().strftime(
+                                "%d %b %Y %H:%M"),
+                        })
+                        st.success("✅ Request saved! See the Appointments "
+                                   "page.")
+                    else:
+                        st.error("Enter the patient name.")
 
+# ============================================================
+# PAGE 6: EMERGENCY
+# ============================================================
+elif page == "🚨 Emergency":
+    st.title("🚨 Emergency Help")
+    st.error("In a life-threatening situation, call immediately:",
+             icon="🚨")
+    for label, num in EMERGENCY_CONTACTS.items():
+        st.markdown(
+            f'<div style="background:#fff0f0;border:2px solid #b00020;'
+            f'border-radius:10px;padding:10px 16px;margin:6px 0;">'
+            f'<span style="font-size:20px;font-weight:bold;">'
+            f'{label}: {num}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+    st.markdown("### 🗣️ Tell us what happened (voice or text)")
+    spoken = voice_input_box()
+    manual = st.text_area("Or type the situation")
+    situation = spoken or manual
+
+    if st.button("🚑 Analyze & log emergency", type="primary"):
+        if situation.strip():
+            urgent, advice = emergency_block(situation)
+            if urgent:
+                st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
+            st.markdown(advice)
+            st.session_state.escalations.append({
+                "when": datetime.now().strftime("%d %b %Y %H:%M"),
+                "question": situation.strip(),
+                "reason": "Emergency page - " +
+                          ("URGENT flags matched" if urgent else
+                           "non-urgent guidance given"),
+            })
+            audio_html = speak_html(advice, voice_lang)
+            if audio_html:
+                st.markdown(audio_html, unsafe_allow_html=True)
+        else:
+            st.warning("Speak or type what happened first.")
+
+    st.divider()
+    st.markdown("### 📈 Escalation log")
+    st.caption("Cases where the app escalated to professional care - "
+               "useful for ASHA workers reviewing follow-ups.")
+    if not st.session_state.escalations:
+        st.info("No escalations logged this session.")
+    else:
+        st.dataframe(pd.DataFrame(st.session_state.escalations),
+                     use_container_width=True)
+
+# ============================================================
+# PAGE 7: ABOUT
+# ============================================================
 else:
     st.title("About ArogyaMitra")
     st.markdown(
         "**ArogyaMitra** is a multilingual (Telugu / Hindi / English) "
-        "rural health accessibility assistant.\n\n"
-        "**What it does**\n"
-        "- Answers everyday health questions with safe, general "
-        "information (Gemini powered, with an offline knowledge base "
-        "fallback).\n"
-        "- Accepts voice input and reads answers aloud.\n"
-        "- Helps locate nearby PHCs and hospitals.\n"
-        "- Detects urgent symptoms and shows 108 / 112 guidance.\n\n"
+        "non-diagnostic rural health assistance platform.\n\n"
+        "**Features**\n"
+        "- 💬 Multilingual conversational interface (text + voice).\n"
+        "- 🩺 Basic health-information guidance with an offline "
+        "knowledge base and Gemini-powered answers.\n"
+        "- 📍 Nearby hospital / health-center locator with map.\n"
+        "- 📅 Appointment / request management.\n"
+        "- ⏰ Medicine and appointment reminders.\n"
+        "- 🚨 Emergency contact functionality with escalation log.\n"
+        "- 📁 Patient health-record organization (with CSV download).\n"
+        "- 🎙️ Voice-based interaction for users with limited literacy.\n"
+        "- 📈 Automatic escalation to healthcare professionals when "
+        "urgent symptoms are detected.\n\n"
         "**What it does NOT do**\n"
-        "- Does not diagnose diseases.\n"
-        "- Does not prescribe prescription medicines.\n"
-        "- Always recommends confirming with a doctor or PHC.\n\n"
-        "**Privacy:** conversations are session-only."
+        "- Does not diagnose diseases or replace doctors.\n"
+        "- Does not prescribe prescription medicines.\n\n"
+        "**Privacy:** all data stays in this browser session only."
     )
     st.divider()
     st.caption(f"Deployed: {datetime.now().strftime('%d %b %Y')}")
