@@ -5,7 +5,7 @@ from datetime import datetime
 from engine import stream_response, emergency_block
 from locator import search_facilities
 from knowledge_base import EMERGENCY_CONTACTS, DISCLAIMER
-from voice import transcribe, speak_html, SUPPORTED_LANGS
+from voice import transcribe, transcribe_any, speak_html, SUPPORTED_LANGS
 
 import pandas as pd
 
@@ -96,8 +96,9 @@ if page == "💬 Health Info Chat":
             if audio_sig != st.session_state.get("last_audio_sig"):
                 st.session_state["last_audio_sig"] = audio_sig
                 with st.spinner("Understanding your speech..."):
-                    # mic_recorder returns webm/opus; convert for recognition
-                    spoken_text = transcribe_any(raw, audio_result.get("format", ""))
+                    spoken_text = transcribe_any(
+                        raw, audio_result.get("format", "")
+                    )
                 if spoken_text:
                     st.toast("Heard you!", icon="✅")
                 else:
