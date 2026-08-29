@@ -482,7 +482,7 @@ elif page == "📁 Health Records":
             rtype = st.selectbox(
                 "Record type",
                 ["🩺 Visit note", "💊 Medicine given",
- "🧪 Lab result", "🌡️ Reading (BP/sugar/weight)",
+                 "🧪 Lab result", "🌡️ Reading (BP/sugar/weight)",
                  "💉 Vaccination"],
             )
         with c2:
@@ -507,7 +507,7 @@ elif page == "📁 Health Records":
 
     st.divider()
     st.markdown("### 🗂️ All records")
-    recs st.session_state.records
+    recs = st.session_state.records
     if not recs:
         st.info("No records yet.")
     else:
@@ -586,7 +586,7 @@ elif page == "📍 Find Facilities":
                 "lat": [f["lat"] for f in results] + [lat],
                 "lon": [f["lon"] for f in results] + [lon],
             })
-           .map(map_df)
+            st.map(map_df)
 
             st.markdown("##### 📅 Request an appointment at one of these")
             with st.form("loc_appt", clear_on_submit=True):
@@ -659,7 +659,7 @@ elif page == "🚨 Emergency":
             st.markdown(
                 '<a href="tel:' + num + '"><button style="'
                 'background:#ffffff;color:#b00020;border:2px solid #b00020;'
-                'border-radius:10px;padding:10px 18px;font-size18px;'
+                'border-radius:10px;padding:10px 18px;font-size:18px;'
                 'font-weight:bold;cursor:pointer;">📞 ' + num
                 + "</button></a>",
                 unsafe_allow_html=True,
