@@ -1,6 +1,7 @@
 import hashlib
 
 import streamlit as st
+import streamlit.components.v1 as components
 from datetime import datetime, date, time as dtime
 from engine import stream_response, emergency_block
 from locator import search_facilities
@@ -28,6 +29,7 @@ st.session_state.setdefault("appointments", [])
 st.session_state.setdefault("reminders", [])
 st.session_state.setdefault("records", [])
 st.session_state.setdefault("escalations", [])
+st.session_state.setdefault("alerted", [])   # keys of already-shown popups
 
 # ---------------- sidebar ----------------
 with st.sidebar:
@@ -95,7 +97,7 @@ def voice_input_box():
             with st.spinner("Understanding your speech..."):
                 text = transcribe_any(raw, result.get("format", ""))
             if text:
-                st.toast("Heard you!", icon="✅")
+                st.toast("Heard you!", icon="")
                 return text
             st.warning("Could not understand. Try again or type.")
     return ""
@@ -107,6 +109,108 @@ def esc_row(when, question, reason):
         "question": question,
         "reason": reason,
     })
+
+
+# ---------------- popup helpers ----------------
+def browser_alert(message):
+    """JavaScript alert popup with beep - fires on top of everything."""
+    safe = message.replace("'", "").replace('"', "")
+    js = (
+        '<script>'
+        'var ctx = new (window.AudioContext ||'
+        ' window.webkitAudioContext)();'
+        'var osc = ctx.createOscillator();'
+        'osc.type = "sine"; osc.frequency.value = 880;'
+        'osc.connect(ctx.destination); osc.start();'
+        'osc.stop(ctx.currentTime + 0.4);'
+        'setTimeout(function(){ alert("' + safe + '"); }, 300);'
+        "</script>"
+    )
+    components.html(js, height=0, width=0)
+
+
+@st.dialog("💊 Medicine Reminder", width="large")
+def due_dialog(name, detail, times):
+    st.markdown(
+        '<div style="text-align:center;font-size:22px;font-weight:bold;">'
+        "⏰ It is time for your medicine!</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    st.markdown(
+        '<div style="background:#1f6f43;color:#ffffff;padding:18px 22px;'
+        'border-radius:12px;font-size:20px;font-weight:bold;'
+        'text-align:center;">'
+        "💊 " + name + "<br>🕒 " + times + "<br>" + detail + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    if st.button("✔️ OK, taken", type="primary",
+                 use_container_width=True):
+        st.rerun()
+
+
+@st.dialog("📅 Visit Reminder", width="large")
+def due_dialog_visit(name, detail):
+    st.markdown(
+        '<div style="text-align:center;font-size:22px;font-weight:bold;">'
+        "⏰ You have an upcoming visit!</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    st.markdown(
+        '<div style="background:#1a4f8a;color:#ffffff;padding:18px 22px;'
+        'border-radius:12px;font-size:20px;font-weight:bold;'
+        'text-align:center;">'
+        "📅 " + name + "<br>" + detail + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    if st.button("✔️ OK", type="primary", use_container_width=True):
+        st.rerun()
+
+
+@st.dialog("✅ Reminder Saved", width="large")
+def saved_popup(name, detail, times):
+    st.markdown(
+        '<div style="text-align:center;font-size:22px;">'
+        "🎉 Reminder added successfully!</div>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+    st.markdown(
+        '<div style="background:#1f6f43;color:#ffffff;padding:18px 22px;'
+        'border-radius:12px;font-size:19px;font-weight:bold;'
+        'text-align:center;">'
+        "💊 " + name + "<br>🕒 " + times + "<br>" + detail + "</div>",
+        unsafe_allow_html=True,
+    )
+    st.info("🔔 A pop-up will appear at the reminder time while this "
+            "page is open.")
+    if st.button("Close", use_container_width=True):
+        st.rerun()
+
+
+def check_due_reminders():
+    """Pop up for any reminder whose time matches now (once per minute)."""
+    now = datetime.now()
+    hhmm = now.strftime("%H:%M")
+    day_key = now.strftime("%Y%m%d")
+    for i, r in enumerate(st.session_state.reminders):
+        if r["done"]:
+            continue
+        times_list = [t.strip() for t in r["times"].split(",")]
+        if hhmm not in times_list:
+            continue
+        key = str(i) + "_" + day_key + "_" + hhmm
+        if key in st.session_state.alerted:
+            continue
+        st.session_state.alerted.append(key)
+        browser_alert("⏰ Reminder: " + r["name"] + " at " + hhmm)
+        if r["type"] == "💊 Medicine":
+            due_dialog(r["name"], r["detail"], hhmm)
+        else:
+            due_dialog_visit(r["name"], r["detail"])
 
 
 # ============================================================
@@ -246,12 +350,13 @@ elif page == "📅 Appointments":
                     st.rerun()
 
 # ============================================================
-# PAGE 3: REMINDERS
+# PAGE 3: REMINDERS  (with pop-ups)
 # ============================================================
 elif page == "⏰ Reminders":
     st.title("⏰ Medicine and Appointment Reminders")
     st.caption("Set reminders for medicines, checkups and vaccination "
-               "doses. Reminders show while the app is open.")
+               "doses. A POP-UP appears at the reminder time while this "
+               "page is open.")
 
     tab1, tab2 = st.tabs(["💊 Medicine reminder", "📅 Visit reminder"])
 
@@ -271,7 +376,7 @@ elif page == "⏰ Reminders":
                                     min_value=date.today())
             if st.form_submit_button("➕ Add medicine reminder"):
                 if mname.strip():
-                    st.session_state.reminders.append({
+                   .session_state.reminders.append({
                         "type": "💊 Medicine",
                         "name": mname.strip(),
                         "detail": mdose + " - " + mfreq,
@@ -281,6 +386,8 @@ elif page == "⏰ Reminders":
                         "done": False,
                     })
                     st.success("✅ Reminder added!")
+                    saved_popup(mname.strip(), md + " - " + mfreq,
+                                mtimes)
                 else:
                     st.error("Enter the medicine name.")
 
@@ -306,24 +413,44 @@ elif page == "⏰ Reminders":
                     "done": False,
                 })
                 st.success("✅ Visit reminder added!")
+                saved_popup(vname, vdate.strftime("%d %b %Y") + " at "
+                            + vtime.strftime("%I:%M %p"),
+                            vtime.strftime("%H:%M"))
 
     st.divider()
+
+    # ---- POP-UP CHECK: fires when a reminder time == current time ----
+    check_due_reminders()
+
     st.markdown("### 🔔 Active reminders")
     rems = st.session_state.reminders
     if not rems:
         st.info("No reminders yet.")
     else:
+        now_hhmm = datetime.now().strftime("%H:%M")
         for i in range(len(rems)):
             r = rems[i]
             if r["done"]:
                 continue
+            is_due = now_hhmm in [t.strip() for t in r["times"].split(",")]
             c1, c2 = st.columns([5, 1])
             with c1:
-                lines = (r["type"] + " **" + r["name"] + "**  \n"
-                         "🕒 " + r["times"] + " | 📆 from " + r["start"]
-                         + " | " + r["detail"]
-                         + " (" + str(r["days"]) + " day(s))")
-                st.markdown(lines)
+                if is_due:
+                    st.markdown(
+                        '<div style="background:#7a0013;color:#ffffff;'
+                        'padding:12px 16px;border-radius:10px;'
+                        'font-size:17px;font-weight:bold;">'
+                        "⏰ DUE NOW - " + r["type"] + " " + r["name"]
+                        + " | 🕒 " + r["times"] + " | " + r["detail"]
+                        + "</div>",
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    lines = (r["type"] + " **" + r["name"] + "**  \n"
+                             "🕒 " + r["times"] + " | 📆 from "
+                             + r["start"] + " | " + r["detail"]
+                             + " (" + str(r["days"]) + " day(s))")
+                    st.markdown(lines)
             with c2:
                 if st.button("✔️", key="rdone" + str(i),
                              help="Mark taken or done"):
@@ -332,6 +459,9 @@ elif page == "⏰ Reminders":
         done_count = len([r for r in rems if r["done"]])
         if done_count:
             st.caption("✅ " + str(done_count) + " reminder(s) completed.")
+
+    st.caption("💡 Tip: set a reminder 1-2 minutes from now, keep this "
+               "page open, and watch the pop-up appear!")
 
 # ============================================================
 # PAGE 4: HEALTH RECORDS
@@ -408,7 +538,7 @@ elif page == "📁 Health Records":
             data=pd.DataFrame(all_rows).to_csv(index=False)
             .encode("utf-8"),
             file_name="health_records.csv",
-            mime="text/csv",
+            mime="/csv",
         )
 
 # ============================================================
@@ -485,7 +615,7 @@ elif page == "📍 Find Facilities":
                         st.error("Enter the patient name.")
 
 # ============================================================
-# PAGE 6: EMERGENCY  (high-contrast redesign)
+# PAGE 6: EMERGENCY
 # ============================================================
 elif page == "🚨 Emergency":
     st.title("🚨 Emergency Help")
@@ -494,12 +624,11 @@ elif page == "🚨 Emergency":
         '<div style="background:#7a0013;color:#ffffff;padding:16px 20px;'
         'border-radius:12px;font-size:20px;font-weight:bold;'
         'text-align:center;">'
-        '🚨 In a life-threatening situation, call immediately</div>',
+        "🚨 In a life-threatening situation, call immediately</div>",
         unsafe_allow_html=True,
     )
     st.write("")
 
-    # Big white number cards - readable in BOTH light and dark theme
     ICONS = {
         "Ambulance": "🚑",
         "National Emergency": "🆘",
@@ -581,7 +710,7 @@ else:
         "knowledge base and Gemini-powered answers.\n"
         "- 📍 Nearby hospital / health-center locator with map.\n"
         "- 📅 Appointment / request management.\n"
-        "- ⏰ Medicine and appointment reminders.\n"
+        "- ⏰ Medicine and appointment reminders with pop-up alerts.\n"
         "- 🚨 Emergency contact functionality with escalation log.\n"
         "- 📁 Patient health-record organization (with CSV download).\n"
         "- 🎙️ Voice-based interaction for users with limited literacy.\n"
