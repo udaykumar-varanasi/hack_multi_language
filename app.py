@@ -24,10 +24,10 @@ URGENT_BANNER_HTML = (
 
 # ---------------- session state defaults ----------------
 st.session_state.setdefault("chat_history", [])
-st.session_state.setdefault("appointments", [])   # appointment requests
-st.session_state.setdefault("reminders", [])      # medicine reminders
-st.session_state.setdefault("records", [])        # health records
-st.session_state.setdefault("escalations", [])    # escalation notes
+st.session_state.setdefault("appointments", [])
+st.session_state.setdefault("reminders", [])
+st.session_state.setdefault("records", [])
+st.session_state.setdefault("escalations", [])
 
 with st.sidebar:
     st.title("⚕️ ArogyaMitra")
@@ -82,7 +82,7 @@ def voice_input_box():
             stop_prompt="⏹️",
             just_once=True,
             use_container_width=True,
-            key=f"mic_{st.session_state.get('mic_counter', 0)}",
+            key="mic_btn",
         )
     with col_hint:
         st.caption("Tap 🎤, allow microphone, speak, tap ⏹️.")
@@ -108,19 +108,10 @@ if page == "💬 Health Chat":
     st.caption("Multilingual chat with voice - Telugu, Hindi, English.")
     st.info(DISCLAIMER, icon="ℹ️")
 
-    for in st.session_state.chat_history:
+    for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             if msg.get("urgent") and msg["role"] == "assistant":
                 st.markdown(URGENT_BANNER_HTML, unsafe_allow_html=True)
-                if msg["role"] == "assistant":
-                    # auto-log escalation when urgent detected
-                    st.session_state.escalations.append({
-                        "when": datetime.now().strftime("%d %b %Y %H:%M"),
-                        "question": st.session_state.chat_history[
-                            st.session_state.chat_history.index(msg) - 1
-                        ]["text"] if st.session_state.chat_history.index(msg) > 0 else "-",
-                        "reason": "Urgent symptoms detected",
-                    })
             st.markdown(msg["text"])
             audio = msg.get("audio")
             if audio:
@@ -214,8 +205,8 @@ elif page == "📅 Appointments":
                 "status": "Requested",
                 "created": datetime.now().strftime("%d %b %Y %H:%M"),
             })
-            st.success("✅ Request saved! An ASHA worker / PHC will confirm. "
-                       "You can view it below.")
+            st.success("✅ Request saved! An ASHA worker / PHC will "
+                       "confirm. You can view it below.")
 
     st.divider()
     st.markdown("### 📋 My appointment requests")
@@ -235,8 +226,8 @@ elif page == "📅 Appointments":
                     f"**Notes:** {a['notes'] or '-'}"
                 )
                 c1, c2 = st.columns(2)
-                if c1.button("✔️ Mark Confirmed", key=f"conf{i}"):
-                    st.session_state.appointments[idx]["status"] = "Confirmed"
+                if c1.button("✔️ Mark Confirmed key=f"conf{i}"):
+ st.session_state.appointments[idx]["status"] = "Confirmed"
                     st.rerun()
                 if c2.button("❌ Cancel", key=f"canc{i}"):
                     st.session_state.appointments[idx]["status"] = "Cancelled"
@@ -255,17 +246,14 @@ elif page == "⏰ Reminders":
     with tab1:
         with st.form("med_form", clear_on_submit=True):
             mname = st.text_input("Medicine name *")
-            mdose = st.text_input("Dose (e.g. 1 tablet)",
-                                  value="1 tablet")
+            mdose = st.text_input("Dose (e.g. 1 tablet)", value="1 tablet")
             mfreq = st.selectbox(
                 "How often?",
                 ["Once a day", "Twice a day", "Three times a day",
                  "Weekly"],
             )
-            mtimes = st.text_input(
-                "Time(s) (24h, comma separated)",
-                value="08:00, 20:00",
-            )
+            mtimes = st.text_input("Time(s) (24h, comma separated)",
+                                   value="08:00, 20:00")
             mdays = st.number_input("For how many days?", 1, 365, 7)
             m_start = st.date_input("Starting from", key="msd",
                                     min_value=date.today())
@@ -409,7 +397,8 @@ elif page == "📁 Health Records":
 # ============================================================
 elif page == "📍 Find Facilities":
     st.title("Find Health Facilities Near You")
-    st.caption("Demo database covering the Tekkali area, Srikakulam district.")
+    st.caption("Demo database covering the Tekkali area, Srikakulam "
+               "district.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -448,9 +437,7 @@ elif page == "📍 Find Facilities":
 
             st.markdown("##### 📅 Request an appointment at one of these")
             with st.form("loc_appt", clear_on_submit=True):
-                fc = st.selectbox(
-                    "Facility", [f["name"] for f in results]
-                )
+                fc = st.selectbox("Facility", [f["name"] for f in results])
                 la1, la2 = st.columns(2)
                 with la1:
                     lp = st.text_input("Patient name *")
@@ -462,7 +449,8 @@ elif page == "📍 Find Facilities":
                     if lp.strip():
                         st.session_state.appointments.append({
                             "name": lp.strip(), "facility": fc,
-                            "purpose": need, "date": ld.strftime("%d %b %Y"),
+                            "purpose": need,
+                            "date": ld.strftime("%d %b %Y"),
                             "time": "10:00 AM", "phone": "",
                             "notes": "Requested from locator",
                             "status": "Requested",
@@ -483,10 +471,10 @@ elif page == "🚨 Emergency":
              icon="🚨")
     for label, num in EMERGENCY_CONTACTS.items():
         st.markdown(
-            f'<div style="background:#fff0f0;border:2px solid #b00020;'
-            f'border-radius:10px;padding:10px 16px;margin:6px 0;">'
-            f'<span style="font-size:20px;font-weight:bold;">'
-            f'{label}: {num}</span></div>',
+            '<div style="background:#fff0f0;border:2px solid #b00020;'
+            'border-radius:10px;padding:10px 16px;margin:6px 0;">'
+            '<span style="font-size:20px;font-weight:bold;">'
+            + label + ": " + num + "</span></div>",
             unsafe_allow_html=True,
         )
 
