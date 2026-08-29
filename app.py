@@ -12,14 +12,14 @@ import pandas as pd
 
 st.set_page_config(
     page_title="ArogyaMitra - Rural Health Assistant",
-    page_icon="logo.png",
+    page_icon="⚕️",
     layout="centered",
     initial_sidebar_state="expanded",
 )
 
 URGENT_BANNER_HTML = (
     '<div style="background:#b00020;color:#ffffff;padding:14px 18px;'
-    'border-radius:10px;font-weight:bold;font-size:18px;margin-bottom:8px;">'
+    'border:10px;font-weight:bold;font:18px;margin-bottom:8px;">'
     '🚨 This sounds URGENT. Call 108 / 112 NOW.</div>'
 )
 
@@ -92,7 +92,7 @@ def voice_input_box():
             key="mic_btn",
         )
     with col_hint:
-        st.caption("Tap 🎤, allow microphone, speak, tap ⏹️.")
+        st.caption("Tap 🎤, microphone, speak, tap ⏹️.")
     if result and result.get("bytes"):
         raw = result["bytes"]
         sig = hashlib.md5(raw).hexdigest()
@@ -168,7 +168,7 @@ def due_dialog_visit(name, detail):
         'text-align:center;">'
         "📅 " + name + "<br>" + detail + "</div>",
         unsafe_allow_html=True,
-    )
+ )
     st.write("")
     if st.button("✔️ OK", type="primary", use_container_width=True):
         st.rerun()
@@ -185,7 +185,7 @@ def saved_popup(name, detail, times):
     st.markdown(
         '<div style="background:#1f6f43;color:#ffffff;padding:18px 22px;'
         'border-radius:12px;font-size:19px;font-weight:bold;'
-        'text-align:center;">'
+       text-align:center;">'
         "💊 " + name + "<br>🕒 " + times + "<br>" + detail + "</div>",
         unsafe_allow_html=True,
     )
@@ -274,7 +274,7 @@ if page == "💬 Health Chat":
                 audio_slot.markdown(audio_html, unsafe_allow_html=True)
 
         st.session_state.chat_history.append(
-            {"role": "assistant", "text": full_text,
+            {"role": "assistant",text": full_text,
              "urgent": urgent, "audio": audio_html}
         )
         st.rerun()
@@ -293,7 +293,7 @@ elif page == "📅 Appointments":
             pname = st.text_input("Patient name *")
             facility = st.selectbox(
                 "Facility",
-                ["Tekkali PHC", "Srikakulam Area Hospital",
+                ["TekkaliC", "Srikakulam Area Hospital",
                  "CHC Santabommali", "Nearest PHC (auto-locate)"],
             )
             need_type = st.selectbox(
@@ -321,7 +321,7 @@ elif page == "📅 Appointments":
                 "time": atime.strftime("%I:%M %p"),
                 "phone": phone,
                 "notes": notes,
-                "status": "Requested",
+ "status": "Requested",
                 "created": datetime.now().strftime("%d %b %Y %H:%M"),
             })
             st.success("✅ Request saved! An ASHA worker / PHC will "
@@ -332,7 +332,7 @@ elif page == "📅 Appointments":
     appts = st.session_state.appointments
     if not appts:
         st.info("No appointment requests yet.")
-    else:
+ else:
         for idx in range(len(appts) - 1, -1, -1):
             a = appts[idx]
             title = ("🎫 " + a["name"] + " - " + a["purpose"]
