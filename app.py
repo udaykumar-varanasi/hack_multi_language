@@ -12,7 +12,7 @@ import pandas as pd
 
 st.set_page_config(
     page_title="ArogyaMitra - Rural Health Assistant",
-    page_icon="⚕️",
+    page_icon="logo.png",
     layout="centered",
     initial_sidebar_state="expanded",
 )
@@ -34,6 +34,10 @@ st.session_state.setdefault("alerted", [])
 # ---------------- sidebar ----------------
 with st.sidebar:
     st.title("⚕️ ArogyaMitra")
+    try:
+        st.image("logo.png", use_container_width=True)
+    except Exception:
+        pass
     st.caption("Rural Health Assistant - AP")
     page = st.radio(
         "Go to",
@@ -697,10 +701,14 @@ elif page == "🚨 Emergency":
                      use_container_width=True)
 
 # ============================================================
-# PAGE 7: ABOUT
+# PAGE 7: ABOUT  (logo below the title)
 # ============================================================
 else:
     st.title("About ArogyaMitra")
+    try:
+        st.image("logo.png", width=220)
+    except Exception:
+        pass
     st.markdown(
         "**ArogyaMitra** is a multilingual (Telugu / Hindi / English) "
         "non-diagnostic rural health assistance platform.\n\n"
