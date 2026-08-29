@@ -21,6 +21,29 @@ _SR_MAP = {
 }
 
 
+def transcribe_any(raw_bytes, fmt=""):
+    """Handle any audio format: convert webm/ogg to wav if needed,
+    then transcribe. Returns '' on failure."""
+    if not raw_bytes:
+        return ""
+    fmt = (fmt or "").lower()
+    if "wav" in fmt or raw_bytes[:4] == b"RIFF":
+        return transcribe(raw_bytes)
+    try:
+        from pydub import AudioSegment
+        try:
+            seg = AudioSegment.from_file(io.BytesIO(raw_bytes))
+        except Exception:
+            seg = AudioSegment.from_file(io.BytesIO(raw_bytes), codec="opus")
+        buf = io.BytesIO()
+        seg.export(buf, format="wav")
+        buf.seek(0)
+        return transcribe(buf.read())
+    except Exception as e:
+        print("Audio convert error:", e)
+        return ""
+
+
 def transcribe(wav_bytes, lang_code="en-IN"):
     """Convert recorded WAV audio bytes to text.
 
